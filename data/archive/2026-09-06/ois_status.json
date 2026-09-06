@@ -1,0 +1,9 @@
+{
+  "service": "OIS Technical Data Engine",
+  "status": "PASS",
+  "last_successful_update": "2026-09-06T02:40:16Z",
+  "WTI_source_date": "2026-09-04",
+  "Brent_source_date": "2026-09-04",
+  "validation": "PASS",
+  "schema_version": "OIS-STATUS-1.0"
+}

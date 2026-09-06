@@ -1,0 +1,3 @@
+# The engine intentionally uses the Python standard library for production.
+# Optional future adapters may add requests, pandas, or exchange-specific SDKs.
+

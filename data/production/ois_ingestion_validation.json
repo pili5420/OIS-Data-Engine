@@ -1,0 +1,109 @@
+{
+  "schema_version": "OIS-VALIDATION-1.0",
+  "generated_at": "2026-09-06T02:41:09Z",
+  "WTI": {
+    "source": "yahoo_chart",
+    "source_date": "2026-09-04",
+    "rows": 504,
+    "unique_dates": 504,
+    "duplicate_dates": 0,
+    "missing_close": 0,
+    "validation_status": "PASS",
+    "errors": [],
+    "warnings": [
+      "1 abnormal price jumps >= 15% require rollover/news review"
+    ],
+    "abnormal_price_jumps": [
+      {
+        "date": "2026-04-08",
+        "previous_date": "2026-04-07",
+        "previous_close": 112.95,
+        "close": 94.41,
+        "jump_pct": 16.4143
+      }
+    ],
+    "unexpected_gaps": [],
+    "rollover_detected": true,
+    "rollover_validation": {
+      "rollover_detected": true,
+      "validation_status": "PASS",
+      "events": [
+        {
+          "rollover_date": "2026-03-06",
+          "old_contract": "continuous_front_month",
+          "new_contract": "continuous_front_month",
+          "price_gap": 9.89,
+          "price_gap_pct": 12.2084,
+          "verification_source": "CME settlement / contract calendar",
+          "normalization_action": "record_only_no_price_adjustment"
+        },
+        {
+          "rollover_date": "2026-04-08",
+          "old_contract": "continuous_front_month",
+          "new_contract": "continuous_front_month",
+          "price_gap": -18.54,
+          "price_gap_pct": -16.4143,
+          "verification_source": "CME settlement / contract calendar",
+          "normalization_action": "record_only_no_price_adjustment"
+        }
+      ],
+      "verification_source": "CME settlement / contract calendar",
+      "normalization_action": "record_only_no_price_adjustment",
+      "notes": [
+        "No forward-fill, interpolation, or manual futures price adjustment is performed.",
+        "Official CME/ICE verification is documented as a required external audit source."
+      ]
+    },
+    "cross_check_status": "NOT_CONFIGURED"
+  },
+  "Brent": {
+    "source": "yahoo_chart",
+    "source_date": "2026-09-04",
+    "rows": 504,
+    "unique_dates": 504,
+    "duplicate_dates": 0,
+    "missing_close": 0,
+    "validation_status": "PASS",
+    "errors": [],
+    "warnings": [],
+    "abnormal_price_jumps": [],
+    "unexpected_gaps": [],
+    "rollover_detected": true,
+    "rollover_validation": {
+      "rollover_detected": true,
+      "validation_status": "PASS",
+      "events": [
+        {
+          "rollover_date": "2026-04-01",
+          "old_contract": "continuous_front_month",
+          "new_contract": "continuous_front_month",
+          "price_gap": -17.19,
+          "price_gap_pct": -14.5247,
+          "verification_source": "ICE Brent futures expiry / settlement calendar",
+          "normalization_action": "record_only_no_price_adjustment"
+        },
+        {
+          "rollover_date": "2026-04-08",
+          "old_contract": "continuous_front_month",
+          "new_contract": "continuous_front_month",
+          "price_gap": -14.52,
+          "price_gap_pct": -13.2882,
+          "verification_source": "ICE Brent futures expiry / settlement calendar",
+          "normalization_action": "record_only_no_price_adjustment"
+        }
+      ],
+      "verification_source": "ICE Brent futures expiry / settlement calendar",
+      "normalization_action": "record_only_no_price_adjustment",
+      "notes": [
+        "No forward-fill, interpolation, or manual futures price adjustment is performed.",
+        "Official CME/ICE verification is documented as a required external audit source."
+      ]
+    },
+    "cross_check_status": "NOT_CONFIGURED"
+  },
+  "overall_validation": "PASS",
+  "last_successful_update": "2026-09-06T02:40:16Z",
+  "last_attempt": "2026-09-06T02:41:09Z",
+  "failure_reason": null,
+  "chart_payload_schema": "PASS"
+}

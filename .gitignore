@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.tmp-tests/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+logs/*.log
+data/staging/*
+!data/staging/.gitkeep
