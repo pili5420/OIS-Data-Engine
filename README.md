@@ -232,6 +232,14 @@ The workflow:
 5. Runs tests.
 6. Runs `python ois_update.py --validate-only`.
 7. Commits and pushes only when production data changed.
+8. Verifies PASS status and consistent source dates, then packages the three public JSON files.
+9. Deploys the artifact to GitHub Pages after the update job succeeds.
+
+Pages publication uses `scripts/prepare_pages.py` to copy the original JSON bytes.
+It does not recalculate indicators, rewrite the database, or change any schema.
+An updater, test, validation, or packaging failure prevents Pages deployment and
+leaves the previous Pages deployment available. No-new-trading-day runs publish
+the retained dataset after production validation confirms PASS.
 
 No new data means no meaningless commit. Failed validation means corrupted data is not committed.
 
@@ -246,13 +254,21 @@ The engine must continue safely without optional API keys by preserving the last
 
 ## Public HTTPS Endpoints
 
-For a public GitHub repository, use raw GitHub URLs:
+Primary endpoints use GitHub Pages and return JSON without authentication:
 
 ```text
 REPOSITORY_URL=https://github.com/pili5420/OIS-Data-Engine
-CHART_PAYLOAD_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_chart_payload.json
-VALIDATION_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_ingestion_validation.json
-STATUS_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_status.json
+CHART_PAYLOAD_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_chart_payload.json
+VALIDATION_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_ingestion_validation.json
+STATUS_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_status.json
+```
+
+The existing raw GitHub endpoints remain available as fallbacks:
+
+```text
+CHART_PAYLOAD_FALLBACK_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_chart_payload.json
+VALIDATION_FALLBACK_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_ingestion_validation.json
+STATUS_FALLBACK_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Engine/main/data/production/ois_status.json
 ```
 
 If the repository is private, do not put secrets or tokens in URLs. Use one of these safer options:

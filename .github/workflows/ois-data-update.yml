@@ -62,3 +62,29 @@ jobs:
             git commit -m "Update OIS production data"
             git push
           fi
+
+      - name: Prepare PASS production JSON for Pages
+        run: python scripts/prepare_pages.py --output "$RUNNER_TEMP/ois-pages"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/ois-pages
+
+  deploy-pages:
+    needs: update
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy production JSON to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
