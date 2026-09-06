@@ -12,7 +12,7 @@ PUBLIC_FILES = {
 }
 
 
-def prepare_pages(source: Path, destination: Path) -> None:
+def load_pass_production(source: Path) -> dict[str, bytes]:
     contents = {name: (source / name).read_bytes() for name in PUBLIC_FILES}
     documents = {name: json.loads(content) for name, content in contents.items()}
     for name, (schema, status_key) in PUBLIC_FILES.items():
@@ -38,6 +38,12 @@ def prepare_pages(source: Path, destination: Path) -> None:
             raise ValueError(f"Inconsistent source dates for {name}")
         if payload[key]["rows"] != validation[name]["rows"]:
             raise ValueError(f"Inconsistent database row counts for {name}")
+
+    return contents
+
+
+def prepare_pages(source: Path, destination: Path) -> None:
+    contents = load_pass_production(source)
 
     # Validate everything before creating an artifact; preserve the original JSON bytes.
     destination.mkdir(parents=True, exist_ok=False)

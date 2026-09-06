@@ -21,6 +21,8 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    outputs:
+      production_sha: ${{ steps.production.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,6 +54,7 @@ jobs:
         run: python ois_update.py --validate-only
 
       - name: Commit production data if changed
+        id: production
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -62,6 +65,7 @@ jobs:
             git commit -m "Update OIS production data"
             git push
           fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Prepare PASS production JSON for Pages
         run: python scripts/prepare_pages.py --output "$RUNNER_TEMP/ois-pages"
@@ -70,6 +74,40 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ${{ runner.temp }}/ois-pages
+
+  distribute-jsdelivr:
+    needs: update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pushed production commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update.outputs.production_sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Purge and verify jsDelivr distribution
+        env:
+          PRODUCTION_COMMIT: ${{ needs.update.outputs.production_sha }}
+        run: >-
+          python -m scripts.distribute_jsdelivr
+          --repository "$GITHUB_REPOSITORY"
+          --commit "$PRODUCTION_COMMIT"
+          --output "$RUNNER_TEMP/ois-jsdelivr/ois_jsdelivr_distribution.json"
+
+      - name: Preserve jsDelivr endpoint and verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ois-jsdelivr-distribution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ois-jsdelivr/ois_jsdelivr_distribution.json
+          if-no-files-found: error
 
   deploy-pages:
     needs: update

@@ -234,6 +234,22 @@ The workflow:
 7. Commits and pushes only when production data changed.
 8. Verifies PASS status and consistent source dates, then packages the three public JSON files.
 9. Deploys the artifact to GitHub Pages after the update job succeeds.
+10. Independently purges and verifies jsDelivr URLs for the post-push production commit.
+
+The update job captures `git rev-parse HEAD` after the production push. The
+jsDelivr job checks out that exact commit, generates `@main` and full-SHA URLs
+for all three JSON files, and purges each `@main` cache. All six GET responses
+must return HTTP 200, `application/json`, and the same SHA256 as the committed
+Git blob. Pending purge requests are polled; provider failures, throttling, and
+stale content are reported as failures. Verification uses the canonical URLs,
+without cache-busting query parameters.
+
+Every run lists all six concrete URLs in its Actions summary and preserves
+`ois_jsdelivr_distribution.json` in the `ois-jsdelivr-distribution-<run>-<attempt>`
+artifact. The report records the production commit, purge results, response
+checks, and Pages/raw fallback URLs. It is separate from production JSON, so
+there is no schema change or self-referencing commit. A jsDelivr failure does
+not block the independent GitHub Pages deployment job.
 
 Pages publication uses `scripts/prepare_pages.py` to copy the original JSON bytes.
 It does not recalculate indicators, rewrite the database, or change any schema.
@@ -254,13 +270,25 @@ The engine must continue safely without optional API keys by preserving the last
 
 ## Public HTTPS Endpoints
 
-Primary endpoints use GitHub Pages and return JSON without authentication:
+Primary endpoints use jsDelivr and return JSON without authentication:
 
 ```text
 REPOSITORY_URL=https://github.com/pili5420/OIS-Data-Engine
-CHART_PAYLOAD_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_chart_payload.json
-VALIDATION_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_ingestion_validation.json
-STATUS_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_status.json
+JSDELIVR_CHART_PAYLOAD_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_chart_payload.json
+JSDELIVR_VALIDATION_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_ingestion_validation.json
+JSDELIVR_STATUS_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_status.json
+```
+
+The immutable URLs replace `@main` with the report's full 40-character
+`production_commit`. Use the same commit for all three files when consuming a
+fixed snapshot. Immutable URLs are verified but never purged.
+
+GitHub Pages endpoints remain available as fallbacks:
+
+```text
+PAGES_CHART_PAYLOAD_FALLBACK_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_chart_payload.json
+PAGES_VALIDATION_FALLBACK_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_ingestion_validation.json
+PAGES_STATUS_FALLBACK_ENDPOINT=https://pili5420.github.io/OIS-Data-Engine/ois_status.json
 ```
 
 The existing raw GitHub endpoints remain available as fallbacks:
