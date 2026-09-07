@@ -1,6 +1,6 @@
 {
   "schema_version": "OIS-VALIDATION-1.0",
-  "generated_at": "2026-09-07T10:36:41Z",
+  "generated_at": "2026-09-07T10:36:40Z",
   "WTI": {
     "source": "yahoo_chart",
     "source_date": "2026-09-07",
@@ -103,7 +103,7 @@
   },
   "overall_validation": "PASS",
   "last_successful_update": "2026-09-07T10:36:40Z",
-  "last_attempt": "2026-09-07T10:36:41Z",
+  "last_attempt": "2026-09-07T10:36:40Z",
   "failure_reason": null,
   "chart_payload_schema": "PASS"
 }
