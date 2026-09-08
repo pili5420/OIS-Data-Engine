@@ -1,0 +1,46 @@
+{
+  "CASE_A_initialization": {
+    "status": "PASS",
+    "WTI_rows": 504,
+    "Brent_rows": 504,
+    "payload_schema": "PASS",
+    "payload_schema_errors": []
+  },
+  "CASE_B_new_trading_day": {
+    "status": "PASS",
+    "append_success": true,
+    "indicators_update": true,
+    "payload_update": true,
+    "payload_errors": []
+  },
+  "CASE_C_no_new_trading_day": {
+    "status": "PASS",
+    "result": "NO_NEW_COMPLETE_TRADING_DAY",
+    "observation_added": false
+  },
+  "CASE_D_bad_incoming_price": {
+    "status": "PASS",
+    "quality_gate_result": "FAIL",
+    "previous_pass_preserved": true
+  },
+  "CASE_E_duplicate_date": {
+    "status": "PASS",
+    "duplicate_dates": 1
+  },
+  "CASE_F_rollover": {
+    "status": "PASS",
+    "rollover_detected": true,
+    "events": [
+      {
+        "rollover_date": "2026-09-07",
+        "old_contract": "continuous_front_month",
+        "new_contract": "continuous_front_month",
+        "price_gap": 11.8924,
+        "price_gap_pct": 13.0,
+        "verification_source": "CME settlement / contract calendar",
+        "normalization_action": "record_only_no_price_adjustment"
+      }
+    ]
+  },
+  "overall": "PASS"
+}
