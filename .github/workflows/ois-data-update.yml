@@ -2,7 +2,7 @@ name: OIS Data Update
 
 on:
   schedule:
-    # 18:30 Asia/Taipei. This is intended to finish before the 20:00 OIS review.
+    # 18:30 Asia/Taipei. This is intended to finish before the 19:35 OIS review.
     - cron: "30 10 * * *"
   workflow_dispatch:
     inputs:
@@ -10,6 +10,10 @@ on:
         description: Rebuild and validate production even without a new trading day
         type: boolean
         default: false
+  push:
+    paths:
+      - "scripts/build_rolling_180.py"
+      - ".github/workflows/ois-data-update.yml"
 
 concurrency:
   group: ois-data-update
@@ -52,6 +56,9 @@ jobs:
 
       - name: Validate production
         run: python ois_update.py --validate-only
+
+      - name: Maintain Incremental Rolling 180 state
+        run: python scripts/build_rolling_180.py
 
       - name: Commit production data if changed
         id: production
