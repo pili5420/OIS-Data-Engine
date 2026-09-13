@@ -58,12 +58,8 @@ def payload_maps(payload: dict) -> dict[str, dict[str, dict]]:
     }
 
 
-def window_dates(payload: dict) -> list[str]:
-    return common_dates(payload)[-WINDOW:]
-
-
 def build_full(payload: dict, mode: str) -> dict:
-    dates = window_dates(payload)
+    dates = common_dates(payload)[-WINDOW:]
     maps = payload_maps(payload)
     stamp = now_utc()
     return {
@@ -92,6 +88,11 @@ def build_full(payload: dict, mode: str) -> dict:
 
 
 def state_dates(state: dict) -> list[str]:
+    if state.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError("invalid rolling state schema_version")
+    if state.get("validation_status") != "PASS" or state.get("window_size") != WINDOW:
+        raise ValueError("invalid rolling state metadata")
+
     datasets = state.get("datasets", {})
     expected: list[str] | None = None
     for key in REQUIRED_DATASETS:
@@ -123,7 +124,10 @@ def full_reconciliation_due(state: dict) -> bool:
     value = state.get("last_full_reconciliation_at")
     if not value:
         return True
-    return (datetime.now(timezone.utc) - parse_utc(value)).days >= 7
+    try:
+        return (datetime.now(timezone.utc) - parse_utc(value)).days >= 7
+    except (TypeError, ValueError):
+        return True
 
 
 def build_incremental(state: dict, payload: dict) -> dict:
@@ -134,7 +138,6 @@ def build_incremental(state: dict, payload: dict) -> dict:
 
     if existing_dates[-1] != last_date:
         raise ValueError("last_source_date does not match rolling state endpoint")
-
     if latest_date < last_date:
         raise ValueError("production latest date is older than rolling state")
 
@@ -188,8 +191,10 @@ def validate_payload(payload: dict) -> None:
     if payload.get("validation_status") != "PASS":
         raise ValueError("production chart payload validation_status is not PASS")
     latest = payload.get("latest_complete_source_date", {})
-    if latest.get("wti") != latest.get("brent"):
+    if not latest.get("wti") or latest.get("wti") != latest.get("brent"):
         raise ValueError("WTI and Brent latest source dates are not synchronized")
+    if common_dates(payload)[-1] != latest["wti"]:
+        raise ValueError("payload dataset endpoint does not match latest source date")
 
 
 def write_state(state: dict) -> None:
@@ -202,22 +207,34 @@ def main() -> int:
     payload = load_json(PAYLOAD_PATH)
     validate_payload(payload)
 
-    if not STATE_PATH.exists():
-        state = build_full(payload, "FULL_LOAD")
+    previous: dict | None = None
+    if STATE_PATH.exists():
+        try:
+            previous = load_json(STATE_PATH)
+        except (OSError, json.JSONDecodeError):
+            previous = None
+
+    if previous is None:
+        mode = "FULL_LOAD" if not STATE_PATH.exists() else "FULL_RECONCILIATION"
+        state = build_full(payload, mode)
+    else:
+        try:
+            state = build_incremental(previous, payload)
+        except (ValueError, KeyError, TypeError):
+            state = build_full(payload, "FULL_RECONCILIATION")
+
+    if state != previous:
         write_state(state)
-        print(json.dumps({"status": "PASS", "mode": "FULL_LOAD", "last_source_date": state["last_source_date"], "window": WINDOW}))
-        return 0
 
-    try:
-        previous = load_json(STATE_PATH)
-        state = build_incremental(previous, payload)
-    except (ValueError, KeyError, json.JSONDecodeError):
-        state = build_full(payload, "FULL_RECONCILIATION")
-
-    if state != load_json(STATE_PATH):
-        write_state(state)
-
-    print(json.dumps({"status": "PASS", "mode": state.get("update_mode", "NO_UPDATE"), "last_source_date": state["last_source_date"], "window": WINDOW}))
+    print(json.dumps({
+        "status": "PASS",
+        "mode": state.get("update_mode", "NO_UPDATE"),
+        "first_source_date": state["first_source_date"],
+        "last_source_date": state["last_source_date"],
+        "window": WINDOW,
+        "counts": state["integrity"]["counts"],
+        "dates_synchronized": state["integrity"]["dates_synchronized"],
+    }, ensure_ascii=False))
     return 0
 
 
