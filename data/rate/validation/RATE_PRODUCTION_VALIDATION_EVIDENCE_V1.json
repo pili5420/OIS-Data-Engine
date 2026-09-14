@@ -1,0 +1,79 @@
+{
+  "evidence_version": "RATE_PRODUCTION_VALIDATION_EVIDENCE_V1",
+  "reference": "RATE-CER-20260914-002",
+  "specification": "RATE-PLS-V1.1",
+  "specification_status": "MISSING_FROM_CONTROLLED_REPOSITORY",
+  "engine_version": "UNDEFINED",
+  "git_commit_sha": "85b5a81",
+  "input_snapshot_id": null,
+  "execution_status": "STOPPED_HARD_STOP",
+  "validation_status": "FAIL",
+  "phase_status": {
+    "P5_production_implementation": "BLOCKED",
+    "P6_validation_suite": "BLOCKED",
+    "P7_e2e_production_dry_run": "BLOCKED"
+  },
+  "checks": {
+    "schema_validation": "BLOCKED",
+    "type_validation": "BLOCKED",
+    "range_validation": "BLOCKED",
+    "freshness_validation": "BLOCKED",
+    "duplicate_validation": "BLOCKED",
+    "calculation_validation": "BLOCKED",
+    "classification_validation": "BLOCKED",
+    "cross_field_consistency_validation": "BLOCKED",
+    "ranking_validation": "BLOCKED",
+    "deterministic_validation": "BLOCKED",
+    "M7_validation": "BLOCKED",
+    "MHE_validation": "BLOCKED",
+    "Stage_validation": "BLOCKED",
+    "Rotation_validation": "BLOCKED",
+    "Smart_Money_validation": "BLOCKED",
+    "Top50_validation": "BLOCKED",
+    "Short_Top30_validation": "BLOCKED",
+    "Long_Top30_validation": "BLOCKED",
+    "deterministic_rerun": "BLOCKED",
+    "e2e_dry_run": "BLOCKED"
+  },
+  "golden_tests": {
+    "passed": 0,
+    "total": 0,
+    "status": "NOT_STARTED",
+    "reason": "Controlled logic specification and golden vectors are unavailable."
+  },
+  "blocking_issues": [
+    {
+      "code": "UNDEFINED_FORMULA",
+      "component": "M7/MHE/Stage/Rotation/Smart Money/Top50-Top30",
+      "detail": "RATE_PRODUCTION_LOGIC_SPEC V1.1 is not present in the repository or another readable controlled source; formulas, weights, thresholds, classification and tie-break rules are unavailable."
+    },
+    {
+      "code": "MISSING_REQUIRED_DATA",
+      "component": "P7 input snapshot",
+      "detail": "No authorized production source bundle or input_snapshot_id is available for an end-to-end run."
+    },
+    {
+      "code": "MISSING_REQUIRED_DATA",
+      "component": "Golden tests",
+      "detail": "Bullish, Neutral, Bearish, Boundary, Missing Data, adjacent transition, structural failure override, and ranking boundary vectors are unavailable."
+    }
+  ],
+  "controlled_repository_inventory": {
+    "existing_rate_logic_files": [],
+    "existing_rate_schema_files": [
+      "schemas/rate_production.schema.json",
+      "schemas/rate_source.schema.json",
+      "src/rate/contract.py",
+      "src/rate/engine.py",
+      "src/rate/publish.py"
+    ],
+    "production_outputs_written": false,
+    "mock_production_pass_used": false
+  },
+  "required_control_center_inputs": [
+    "Controlled RATE_PRODUCTION_LOGIC_SPEC V1.1 content or repository path",
+    "Engine version assignment",
+    "Authorized production input bundle and input_snapshot_id",
+    "Golden test vectors and expected outputs"
+  ]
+}
