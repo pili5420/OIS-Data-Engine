@@ -78,8 +78,8 @@
     "validation_status": "PASS"
   },
   "bootstrap_revised_rows": {
-    "brent": 2,
-    "wti": 2
+    "brent": 0,
+    "wti": 0
   },
   "chart_payload_schema": "PASS",
   "checks": {
@@ -99,15 +99,14 @@
   "duplicate_status": "PASS",
   "failure_reason": null,
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T10:08:01Z",
-  "last_attempt": "2026-09-14T10:08:01Z",
-  "last_successful_update": "2026-09-14T10:08:01Z",
+  "generated_at": "2026-09-14T10:36:32Z",
+  "last_attempt": "2026-09-14T10:36:32Z",
+  "last_successful_update": "2026-09-14T10:36:32Z",
   "missing_fields": [],
   "overall_validation": "PASS",
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
-    "INCOMPLETE_SESSION_EXCLUDED",
-    "LEGACY_BOOTSTRAP_RECONCILIATION"
+    "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 2,
   "runtime_contract_version": "1.0",

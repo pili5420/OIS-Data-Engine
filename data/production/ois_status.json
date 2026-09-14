@@ -4,13 +4,12 @@
   "data_as_of": "2026-09-11",
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T10:08:01Z",
-  "last_successful_update": "2026-09-14T10:08:01Z",
+  "generated_at": "2026-09-14T10:36:32Z",
+  "last_successful_update": "2026-09-14T10:36:32Z",
   "missing_fields": [],
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
-    "INCOMPLETE_SESSION_EXCLUDED",
-    "LEGACY_BOOTSTRAP_RECONCILIATION"
+    "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 2,
   "runtime_contract_version": "1.0",
