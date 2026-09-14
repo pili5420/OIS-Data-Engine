@@ -5,8 +5,9 @@
 - Repository: `pili5420/OIS-Data-Engine`
 - Development branch: `codex/ois-production-runtime`
 - Production branch: `main`
-- Commit: the Git commit containing this release note; resolve with
-  `git log -1 --format=%H -- docs/releases/OIS-RUNTIME-2026-09-14.1.md`.
+- Engineering commit: `1ff9487e86d74d0a93ceaf085eab7450fa3d411a`.
+- First production snapshot commit: `262ba06b0b37590df93aa470c4abff1bc918751f`.
+- Verified GitHub Actions run: [34831472928](https://github.com/pili5420/OIS-Data-Engine/actions/runs/34831472928), completed successfully.
 - Rollback point: `76f83ea5d668b5dec21152563303d87cd4313745`
 
 ## Impact analysis
@@ -62,6 +63,14 @@ must extend their field allowlists as documented in the runtime specification.
   by the local dry run.
 - Independent verification covers every indicator value in both existing
   historical indicator files and new candidates at six-decimal output precision.
+- First GitHub Actions run: `test`, `production`, `deploy-pages`, and
+  `distribute-jsdelivr` all succeeded. Cloud live ingestion, candidate validation,
+  Git tree dry run, atomic publication and four-file Pages packaging succeeded.
+- Read-back of the actual published Git snapshot passed all runtime checks.
+  Snapshot ID: `e75c3005af076ef34e8186a7789effe5097a54d4f55df9ee889861af74110323`.
+  Rolling interval: `2025-12-23` through `2026-09-11`, exactly 180 rows per dataset.
+- The existing Pages deployment and all four mutable/four immutable jsDelivr
+  endpoints were verified successfully by the corresponding cloud jobs.
 
 The live bootstrap comparison found two revised rows per commodity: September 10
 volume, and September 11 low/close/volume. Current completed source values replace
