@@ -7579,7 +7579,7 @@
   "duplicate_status": "PASS",
   "first_source_date": "2025-12-23",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T10:08:01Z",
+  "generated_at": "2026-09-14T10:36:32Z",
   "integrity": {
     "counts": {
       "brent_macd": 180,
@@ -7601,8 +7601,7 @@
   "missing_fields": [],
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
-    "INCOMPLETE_SESSION_EXCLUDED",
-    "LEGACY_BOOTSTRAP_RECONCILIATION"
+    "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 180,
   "runtime_contract_version": "1.0",
@@ -7613,7 +7612,7 @@
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
-  "source_payload_generated_at": "2026-09-14T10:08:01Z",
+  "source_payload_generated_at": "2026-09-14T10:36:32Z",
   "source_timestamp": {
     "brent": "2026-09-11T04:00:00Z",
     "wti": "2026-09-11T04:00:00Z"

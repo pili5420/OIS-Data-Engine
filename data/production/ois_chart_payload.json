@@ -10539,7 +10539,7 @@
   },
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T10:08:01Z",
+  "generated_at": "2026-09-14T10:36:32Z",
   "latest_complete_source_date": {
     "brent": "2026-09-11",
     "wti": "2026-09-11"
@@ -10547,8 +10547,7 @@
   "missing_fields": [],
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
-    "INCOMPLETE_SESSION_EXCLUDED",
-    "LEGACY_BOOTSTRAP_RECONCILIATION"
+    "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 250,
   "runtime_contract_version": "1.0",
