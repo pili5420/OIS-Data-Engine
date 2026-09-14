@@ -24,7 +24,8 @@ Every file contains `schema_version`, `contract_version`, `generated_at`,
 `validation_status`, `quality_flags`, `missing_fields`, `duplicate_status`, and
 `freshness_status`. PASS files also contain a shared `snapshot_id`.
 
-The source bundle is a JSON object with `metadata` and `datasets`. The source
+The source bundle is a JSON object with `metadata` and `datasets`; its top-level
+shape is fixed by `schemas/rate_source.schema.json`. The source
 must provide all 13 datasets. `top50_universe` must contain exactly 50 rows and
 `top30_universe` exactly 30 rows. Each dataset rejects missing values, unknown or
 missing fields, duplicates, non-finite numbers, invalid ranks, invalid evidence
@@ -36,8 +37,11 @@ UTC, supports manual dry runs, serializes writers and publishes only a PASS
 candidate. It reads `RATE_SOURCE_URL` and optional `RATE_SOURCE_TOKEN` from
 GitHub Actions Secrets. Neither is embedded in source code. If the source secret
 is not configured, the run fails closed and does not create or overwrite RATE
-production data. Network retry and provider-specific adapters must be added only
-through a controlled engineering change with an explicit source contract.
+production data. Network timeout, connection failure and HTTP 408/429/500/502/503/504
+receive at most three attempts with 2/4-second backoff. Other HTTP errors,
+invalid JSON and integrity failures do not retry. Provider-specific adapters must
+be added only through a controlled engineering change with an explicit source
+contract.
 
 This repository now contains the RATE contract, validator, candidate generator,
 publisher, workflow and tests. It does not claim RATE validation PASS until an

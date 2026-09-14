@@ -5,8 +5,10 @@ import hashlib
 import json
 import math
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from jsonschema import Draft202012Validator
@@ -32,13 +34,29 @@ def read_json(path: Path) -> dict:
         return output
     return json.loads(path.read_text(encoding="utf-8"), parse_constant=reject, object_pairs_hook=unique)
 
-def fetch_source(url: str, token: str | None = None) -> dict:
+def fetch_source(url: str, token: str | None = None, *, opener=urlopen, sleeper=time.sleep) -> dict:
     headers = {"User-Agent": "RATE-Data-Engine/1.0", "Accept": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    request = Request(url, headers=headers)
-    with urlopen(request, timeout=30) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    last_error: str | None = None
+    for attempt in range(3):
+        request = Request(url, headers=headers)
+        try:
+            with opener(request, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            break
+        except HTTPError as exc:
+            if exc.code not in (408, 429, 500, 502, 503, 504):
+                raise RateIntegrityError(f"SOURCE_HTTP_{exc.code}") from None
+            last_error = f"SOURCE_HTTP_{exc.code}"
+        except (URLError, TimeoutError, ConnectionError, OSError) as exc:
+            last_error = type(exc).__name__
+        except (ValueError, UnicodeError):
+            raise RateIntegrityError("SOURCE_INVALID_JSON") from None
+        if attempt < 2:
+            sleeper(2 ** (attempt + 1))
+    else:
+        raise RuntimeError(last_error or "SOURCE_RETRY_EXHAUSTED")
     if not isinstance(payload, dict):
         raise RateIntegrityError("SOURCE_ROOT_NOT_OBJECT")
     return payload
@@ -49,6 +67,10 @@ def _number(value: object, field: str) -> None:
 
 def validate_bundle(bundle: dict, *, now: datetime | None = None, max_age_days: int = 7) -> dict:
     now = now or datetime.now(timezone.utc)
+    source_schema = json.loads((ROOT / "schemas" / "rate_source.schema.json").read_text(encoding="utf-8"))
+    schema_errors = list(Draft202012Validator(source_schema).iter_errors(bundle))
+    if schema_errors:
+        raise RateIntegrityError(f"SOURCE_SCHEMA:{schema_errors[0].message}")
     metadata = bundle.get("metadata")
     datasets = bundle.get("datasets")
     if not isinstance(metadata, dict) or not isinstance(datasets, dict):

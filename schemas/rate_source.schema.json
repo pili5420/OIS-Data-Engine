@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RATE source bundle 1.0",
+  "type": "object",
+  "required": ["metadata", "datasets"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["source", "source_timestamp", "data_as_of"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "source_timestamp": {"type": "string", "format": "date-time"},
+        "data_as_of": {"type": "string", "format": "date"}
+      },
+      "additionalProperties": true
+    },
+    "datasets": {"type": "object", "required": ["market_structure", "weekly_structure", "margin_financing", "institutional_flow", "smart_money", "fundamental_evidence", "top50_universe", "top30_universe", "stage_inputs", "rotation_inputs", "m7_inputs", "mhe_inputs", "portfolio_market_data"]}
+  },
+  "additionalProperties": false
+}

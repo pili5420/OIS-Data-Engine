@@ -3,11 +3,12 @@ from __future__ import annotations
 import copy
 import json
 import unittest
+from unittest.mock import Mock
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.rate.contract import DATASETS
-from src.rate.engine import RateIntegrityError, build_documents, validate_bundle, write_candidate
+from src.rate.engine import RateIntegrityError, build_documents, fetch_source, validate_bundle, write_candidate
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -77,6 +78,15 @@ class RateTests(unittest.TestCase):
         self.assertEqual(main(["--candidate", str(candidate), "--report", str(report)]), 1)
         self.assertEqual(json.loads(report.read_text())["validation_status"], "FAIL")
         report.unlink(missing_ok=True)
+
+    def test_ingestion_retries_transient_network_and_rate_limit(self):
+        from urllib.error import HTTPError, URLError
+        response = type("Response", (), {"__enter__": lambda self: self, "__exit__": lambda *args: None, "read": lambda self: b'{"metadata":{},"datasets":{}}'})()
+        opener = Mock(side_effect=[URLError("timeout"), HTTPError("x", 429, "rate", {}, None), response])
+        sleeper = Mock()
+        self.assertEqual(fetch_source("https://source.invalid", opener=opener, sleeper=sleeper), {"metadata": {}, "datasets": {}})
+        self.assertEqual(opener.call_count, 3)
+        self.assertEqual([call.args[0] for call in sleeper.call_args_list], [2, 4])
 
 
 if __name__ == "__main__":
