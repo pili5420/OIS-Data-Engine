@@ -1,6 +1,9 @@
-# OIS Technical Data Engine v1
+# OIS Technical Data Engine — Production Runtime
 
 Data layer for ChatGPT OIS V4.4 Professional Interactive Edition.
+
+Production execution and validation contract: [PRODUCTION_RUNTIME_SPEC.md](docs/PRODUCTION_RUNTIME_SPEC.md).
+The supported entry points are `python -m src.runtime.engine` and `python -m src.runtime.publish`.
 
 The engine provides clean, validated, repeatable futures technical data for six OIS charts:
 
@@ -95,7 +98,7 @@ EMA seed is the first available close. Smoothing alpha is `2 / (period + 1)`.
 
 Validation checks:
 
-- `rows >= 250`
+- `rows >= 370` to warm up every point in the 250-point chart payload
 - `unique_dates == rows`
 - `duplicate_dates == 0`
 - `missing_close == 0`
@@ -104,59 +107,24 @@ Validation checks:
 - no source mismatch
 - abnormal jump logging
 - unexpected gap logging
+- completed-session freshness and exchange trading-date validation
+- exactly 180 synchronized rolling rows and cross-file consistency
 
 If validation fails, production data is not overwritten. The last PASS dataset remains active.
 
-## Initialization
+## Production Runtime
 
-Run:
+The single scheduled writer is `.github/workflows/ois_production.yml`, daily at
+10:30 UTC / 18:30 Asia/Taipei. Manual dispatch supports a live dry run. The legacy
+updater and rolling CLI are not production entry points.
 
-```bash
-python ois_update.py --initialize
-```
+The runtime stages candidates outside production, validates all four public
+JSON files and persistent history, and publishes the complete snapshot in one
+non-forced Git commit/ref update. Failed attempts are Actions artifacts; they
+never overwrite the last valid status, validation or chart data.
 
-Preferred baseline history is at least 500 trading days for each commodity. The minimum acceptable production baseline is 250 trading days.
-
-Production files:
-
-```text
-data/production/ois_wti_clean.csv
-data/production/ois_brent_clean.csv
-data/production/ois_wti_indicators.json
-data/production/ois_brent_indicators.json
-data/production/ois_chart_payload.json
-data/production/ois_ingestion_validation.json
-data/production/ois_status.json
-```
-
-## Daily Updater
-
-Run:
-
-```bash
-python ois_update.py
-```
-
-Other modes:
-
-```bash
-python ois_update.py --force
-python ois_update.py --validate-only
-python ois_update.py --initialize
-```
-
-Daily behavior:
-
-1. Fetch latest structured futures data.
-2. Keep previous PASS dataset if source fetch fails.
-3. Detect no-new-complete-trading-day.
-4. Validate staging data.
-5. Calculate indicators.
-6. Generate chart payload.
-7. Atomic replace production only on PASS.
-8. Archive a PASS snapshot under `data/archive/YYYY-MM-DD/`.
-
-Weekend and holiday behavior returns `NO_NEW_COMPLETE_TRADING_DAY` and keeps the latest PASS production dataset usable.
+See [the runtime specification](docs/PRODUCTION_RUNTIME_SPEC.md) for commands,
+source finalization, schemas, tests, secrets, failure handling and rollback.
 
 ## Chart Payload Schema
 
@@ -209,64 +177,16 @@ logs/ois_update.log
 
 Logs include timestamp, event, source/update result, validation result, and errors. API secrets must not be logged.
 
-## GitHub Actions
+## GitHub Actions and Secrets
 
-Workflow:
+The runtime workflow replaces `ois-data-update.yml` and preserves the established
+Pages and jsDelivr distribution channels. All four JSON outputs, including
+`ois_chart_rolling_180.json`, are distributed. Consumers should pin the same full
+Git commit across files. Separate mutable CDN requests are not snapshot-atomic.
 
-```text
-.github/workflows/ois-data-update.yml
-```
-
-It runs daily and supports manual `workflow_dispatch`.
-
-The schedule is 10:30 UTC (18:30 Asia/Taipei), before the 20:00 OIS review.
-Manual runs can enable `force_update` to verify the complete publication path;
-scheduled runs retain the default no-new-trading-day behavior.
-
-The workflow:
-
-1. Checks out the repository.
-2. Sets up Python.
-3. Installs dependencies.
-4. Runs `python ois_update.py`.
-5. Runs tests.
-6. Runs `python ois_update.py --validate-only`.
-7. Commits and pushes only when production data changed.
-8. Verifies PASS status and consistent source dates, then packages the three public JSON files.
-9. Deploys the artifact to GitHub Pages after the update job succeeds.
-10. Independently purges and verifies jsDelivr URLs for the post-push production commit.
-
-The update job captures `git rev-parse HEAD` after the production push. The
-jsDelivr job checks out that exact commit, generates `@main` and full-SHA URLs
-for all three JSON files, and purges each `@main` cache. All six GET responses
-must return HTTP 200, `application/json`, and the same SHA256 as the committed
-Git blob. Pending purge requests are polled; provider failures, throttling, and
-stale content are reported as failures. Verification uses the canonical URLs,
-without cache-busting query parameters.
-
-Every run lists all six concrete URLs in its Actions summary and preserves
-`ois_jsdelivr_distribution.json` in the `ois-jsdelivr-distribution-<run>-<attempt>`
-artifact. The report records the production commit, purge results, response
-checks, and Pages/raw fallback URLs. It is separate from production JSON, so
-there is no schema change or self-referencing commit. A jsDelivr failure does
-not block the independent GitHub Pages deployment job.
-
-Pages publication uses `scripts/prepare_pages.py` to copy the original JSON bytes.
-It does not recalculate indicators, rewrite the database, or change any schema.
-An updater, test, validation, or packaging failure prevents Pages deployment and
-leaves the previous Pages deployment available. No-new-trading-day runs publish
-the retained dataset after production validation confirms PASS.
-
-No new data means no meaningless commit. Failed validation means corrupted data is not committed.
-
-## Secrets
-
-No API keys are hardcoded. Optional future adapters must use environment variables or GitHub Actions Secrets, for example:
-
-- `STOOQ_API_KEY`
-- `NASDAQ_API_KEY`
-
-The engine must continue safely without optional API keys by preserving the last PASS production dataset.
+Only the automatic `GITHUB_TOKEN` is required; the current public Yahoo adapters
+need no API key. See the [runtime contract](docs/PRODUCTION_RUNTIME_SPEC.md) for
+permissions and operational limitations.
 
 ## Public HTTPS Endpoints
 
@@ -277,6 +197,7 @@ REPOSITORY_URL=https://github.com/pili5420/OIS-Data-Engine
 JSDELIVR_CHART_PAYLOAD_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_chart_payload.json
 JSDELIVR_VALIDATION_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_ingestion_validation.json
 JSDELIVR_STATUS_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_status.json
+JSDELIVR_ROLLING_180_ENDPOINT=https://cdn.jsdelivr.net/gh/pili5420/OIS-Data-Engine@main/data/production/ois_chart_rolling_180.json
 ```
 
 The immutable URLs replace `@main` with the report's full 40-character
@@ -301,23 +222,15 @@ STATUS_FALLBACK_ENDPOINT=https://raw.githubusercontent.com/pili5420/OIS-Data-Eng
 
 If the repository is private, do not put secrets or tokens in URLs. Use one of these safer options:
 
-- publish only the three production JSON files to a separate public data-only repository;
+- publish only the four production JSON files to a separate public data-only repository;
 - publish via GitHub Pages from a sanitized public branch;
 - expose a small authenticated proxy controlled outside ChatGPT, with credentials stored server-side;
 - manually upload the current production JSON files into ChatGPT project files when automation is unavailable.
 
 ## Production Ready Criteria
 
-The engine is Production Ready only when all checks pass:
-
-- WTI rows >= 250
-- Brent rows >= 250
-- duplicate dates = 0
-- missing Close = 0
-- MA120 valid
-- MACD valid
-- RSI14 valid
-- chart payload schema PASS
-- overall validation PASS
-- GitHub Actions workflow present
-- public HTTPS endpoints configured for the target repository
+All checks in the [runtime specification](docs/PRODUCTION_RUNTIME_SPEC.md) must
+pass: source freshness, finite complete OHLCV, unique valid trading dates, schema
+and type checks, independent historical indicator verification, exactly 180
+synchronized rolling rows, cross-file agreement and candidate hashes. A valid
+candidate must pass Git publication dry run before the atomic production push.

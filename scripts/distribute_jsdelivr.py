@@ -12,14 +12,16 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
-from scripts.prepare_pages import PUBLIC_FILES, load_pass_production
+from scripts.prepare_pages import load_pass_production
 
 
 ENDPOINT_NAMES = {
     "ois_chart_payload.json": "CHART_PAYLOAD",
     "ois_ingestion_validation.json": "VALIDATION",
     "ois_status.json": "STATUS",
+    "ois_chart_rolling_180.json": "ROLLING_180",
 }
+PUBLIC_FILES = tuple(ENDPOINT_NAMES)
 RETRY_DELAYS = (0, 5, 15, 30)
 
 

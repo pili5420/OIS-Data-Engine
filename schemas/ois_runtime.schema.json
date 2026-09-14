@@ -1,0 +1,744 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OIS Production Runtime contract 1.0 (valid snapshot)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "runtime_contract_version",
+    "generated_at",
+    "data_as_of",
+    "source",
+    "source_timestamp",
+    "record_count",
+    "snapshot_id",
+    "validation_status",
+    "quality_flags",
+    "missing_fields",
+    "duplicate_status",
+    "freshness_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "OIS-STATUS-1.0",
+        "OIS-VALIDATION-1.0",
+        "OIS-CHART-1.0",
+        "OIS-ROLLING-180-1.0"
+      ]
+    },
+    "runtime_contract_version": {
+      "const": "1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data_as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "wti",
+        "brent"
+      ],
+      "properties": {
+        "wti": {
+          "const": "yahoo_chart"
+        },
+        "brent": {
+          "const": "yahoo_chart"
+        }
+      },
+      "additionalProperties": false
+    },
+    "source_timestamp": {
+      "type": "object",
+      "required": [
+        "wti",
+        "brent"
+      ],
+      "properties": {
+        "wti": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "brent": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "validation_status": {
+      "const": "PASS"
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "missing_fields": {
+      "const": []
+    },
+    "duplicate_status": {
+      "const": "PASS"
+    },
+    "freshness_status": {
+      "const": "PASS"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "OIS-STATUS-1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "status",
+          "validation",
+          "last_successful_update",
+          "WTI_source_date",
+          "Brent_source_date"
+        ],
+        "properties": {
+          "record_count": {
+            "const": 2
+          },
+          "status": {
+            "const": "PASS"
+          },
+          "validation": {
+            "const": "PASS"
+          },
+          "last_successful_update": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "WTI_source_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "Brent_source_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "OIS-VALIDATION-1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "overall_validation",
+          "checks",
+          "chart_payload_schema",
+          "WTI",
+          "Brent",
+          "last_successful_update"
+        ],
+        "properties": {
+          "record_count": {
+            "const": 2
+          },
+          "overall_validation": {
+            "const": "PASS"
+          },
+          "chart_payload_schema": {
+            "const": "PASS"
+          },
+          "last_successful_update": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "OIS-CHART-1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "datasets",
+          "latest_complete_source_date"
+        ],
+        "properties": {
+          "record_count": {
+            "const": 250
+          },
+          "datasets": {
+            "type": "object",
+            "required": [
+              "wti_price_structure",
+              "wti_macd",
+              "wti_rsi",
+              "brent_price_structure",
+              "brent_macd",
+              "brent_rsi"
+            ],
+            "properties": {
+              "wti_price_structure": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "price",
+                    "ma20",
+                    "ma60",
+                    "ma120"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "ma20": {
+                      "type": "number"
+                    },
+                    "ma60": {
+                      "type": "number"
+                    },
+                    "ma120": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "wti_macd": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "dif",
+                    "dea",
+                    "histogram",
+                    "zero"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "dif": {
+                      "type": "number"
+                    },
+                    "dea": {
+                      "type": "number"
+                    },
+                    "histogram": {
+                      "type": "number"
+                    },
+                    "zero": {
+                      "const": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "wti_rsi": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "rsi14",
+                    "upper70",
+                    "middle50",
+                    "lower30"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "rsi14": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "upper70": {
+                      "const": 70
+                    },
+                    "middle50": {
+                      "const": 50
+                    },
+                    "lower30": {
+                      "const": 30
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_price_structure": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "price",
+                    "ma20",
+                    "ma60",
+                    "ma120"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "ma20": {
+                      "type": "number"
+                    },
+                    "ma60": {
+                      "type": "number"
+                    },
+                    "ma120": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_macd": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "dif",
+                    "dea",
+                    "histogram",
+                    "zero"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "dif": {
+                      "type": "number"
+                    },
+                    "dea": {
+                      "type": "number"
+                    },
+                    "histogram": {
+                      "type": "number"
+                    },
+                    "zero": {
+                      "const": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_rsi": {
+                "type": "array",
+                "minItems": 250,
+                "maxItems": 250,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "rsi14",
+                    "upper70",
+                    "middle50",
+                    "lower30"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "rsi14": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "upper70": {
+                      "const": 70
+                    },
+                    "middle50": {
+                      "const": 50
+                    },
+                    "lower30": {
+                      "const": 30
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "latest_complete_source_date": {
+            "type": "object",
+            "required": [
+              "wti",
+              "brent"
+            ],
+            "properties": {
+              "wti": {
+                "type": "string",
+                "format": "date"
+              },
+              "brent": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "OIS-ROLLING-180-1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "datasets",
+          "latest_complete_source_date",
+          "window_size",
+          "first_source_date",
+          "last_source_date",
+          "source_payload_generated_at",
+          "integrity",
+          "update_mode",
+          "appended_trading_days",
+          "dropped_trading_days",
+          "last_full_reconciliation_at"
+        ],
+        "properties": {
+          "record_count": {
+            "const": 180
+          },
+          "datasets": {
+            "type": "object",
+            "required": [
+              "wti_price_structure",
+              "wti_macd",
+              "wti_rsi",
+              "brent_price_structure",
+              "brent_macd",
+              "brent_rsi"
+            ],
+            "properties": {
+              "wti_price_structure": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "price",
+                    "ma20",
+                    "ma60",
+                    "ma120"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "ma20": {
+                      "type": "number"
+                    },
+                    "ma60": {
+                      "type": "number"
+                    },
+                    "ma120": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "wti_macd": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "dif",
+                    "dea",
+                    "histogram",
+                    "zero"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "dif": {
+                      "type": "number"
+                    },
+                    "dea": {
+                      "type": "number"
+                    },
+                    "histogram": {
+                      "type": "number"
+                    },
+                    "zero": {
+                      "const": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "wti_rsi": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "rsi14",
+                    "upper70",
+                    "middle50",
+                    "lower30"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "rsi14": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "upper70": {
+                      "const": 70
+                    },
+                    "middle50": {
+                      "const": 50
+                    },
+                    "lower30": {
+                      "const": 30
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_price_structure": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "price",
+                    "ma20",
+                    "ma60",
+                    "ma120"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "ma20": {
+                      "type": "number"
+                    },
+                    "ma60": {
+                      "type": "number"
+                    },
+                    "ma120": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_macd": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "dif",
+                    "dea",
+                    "histogram",
+                    "zero"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "dif": {
+                      "type": "number"
+                    },
+                    "dea": {
+                      "type": "number"
+                    },
+                    "histogram": {
+                      "type": "number"
+                    },
+                    "zero": {
+                      "const": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "brent_rsi": {
+                "type": "array",
+                "minItems": 180,
+                "maxItems": 180,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "rsi14",
+                    "upper70",
+                    "middle50",
+                    "lower30"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "rsi14": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "upper70": {
+                      "const": 70
+                    },
+                    "middle50": {
+                      "const": 50
+                    },
+                    "lower30": {
+                      "const": 30
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "latest_complete_source_date": {
+            "type": "object",
+            "required": [
+              "wti",
+              "brent"
+            ],
+            "properties": {
+              "wti": {
+                "type": "string",
+                "format": "date"
+              },
+              "brent": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "additionalProperties": false
+          },
+          "window_size": {
+            "const": 180
+          },
+          "first_source_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "last_source_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "source_payload_generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_full_reconciliation_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "update_mode": {
+            "enum": [
+              "FULL_LOAD",
+              "FULL_RECONCILIATION",
+              "INCREMENTAL_APPEND_DROP"
+            ]
+          },
+          "appended_trading_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 180
+          },
+          "dropped_trading_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 180
+          }
+        }
+      }
+    }
+  ]
+}

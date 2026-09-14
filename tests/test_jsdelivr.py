@@ -21,9 +21,9 @@ def purge_result():
 
 
 class JsDelivrTests(unittest.TestCase):
-    def test_generates_six_endpoints_bound_to_full_production_commit(self):
+    def test_generates_eight_endpoints_bound_to_full_production_commit(self):
         report = cdn.make_report(REPOSITORY, COMMIT)
-        self.assertEqual(6, len(report["endpoints"]))
+        self.assertEqual(8, len(report["endpoints"]))
         self.assertEqual(COMMIT, report["production_commit"])
         for entry in report["files"].values():
             self.assertIn("@main/data/production/", entry["main_url"])
@@ -110,14 +110,14 @@ class JsDelivrTests(unittest.TestCase):
             with self.subTest(fail_purge=fail_purge):
                 report = cdn.distribute(REPOSITORY, COMMIT, Path("unused"))
                 self.assertEqual("FAIL" if fail_purge else "PASS", report["overall_status"])
-                self.assertEqual(6, verify.call_count)
-                self.assertEqual(3, purge.call_count)
+                self.assertEqual(8, verify.call_count)
+                self.assertEqual(4, purge.call_count)
                 for filename, entry in report["files"].items():
                     self.assertIn("expected_sha256", entry)
                     self.assertEqual("PASS", entry["immutable"]["status"])
                     self.assertEqual("PASS", entry["main"]["status"])
                     self.assertEqual("FAIL" if fail_purge else "PASS", entry["purge"]["status"])
-                for call in git.call_args_list[-3:]:
+                for call in git.call_args_list[-4:]:
                     self.assertIn(COMMIT + ":data/production/", call.args[0][-1])
             verify.reset_mock()
             purge.reset_mock()

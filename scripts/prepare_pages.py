@@ -13,9 +13,18 @@ PUBLIC_FILES = {
 
 
 def load_pass_production(source: Path) -> dict[str, bytes]:
-    contents = {name: (source / name).read_bytes() for name in PUBLIC_FILES}
+    files = dict(PUBLIC_FILES)
+    status = json.loads((source / "ois_status.json").read_bytes())
+    if status.get("runtime_contract_version"):
+        # Runtime snapshots always include the fourth output. Legacy artifacts
+        # remain readable for rollback; the runtime publisher only accepts v1.
+        from datetime import datetime, timezone
+        from src.runtime.engine import validate_bundle
+        validate_bundle(source.parent.parent, datetime.now(timezone.utc))
+        files["ois_chart_rolling_180.json"] = ("OIS-ROLLING-180-1.0", "validation_status")
+    contents = {name: (source / name).read_bytes() for name in files}
     documents = {name: json.loads(content) for name, content in contents.items()}
-    for name, (schema, status_key) in PUBLIC_FILES.items():
+    for name, (schema, status_key) in files.items():
         document = documents[name]
         if document.get("schema_version") != schema or document.get(status_key) != "PASS":
             raise ValueError(f"Pages publication requires {schema} and PASS: {name}")
@@ -57,7 +66,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     prepare_pages(args.source, args.output)
-    print("Pages artifact PASS: three production JSON files copied without modification.")
+    print("Pages artifact PASS: production JSON files copied without modification.")
 
 
 if __name__ == "__main__":
