@@ -1,9 +1,31 @@
 {
-  "service": "OIS Technical Data Engine",
-  "status": "PASS",
-  "last_successful_update": "2026-09-11T10:37:05Z",
-  "WTI_source_date": "2026-09-11",
   "Brent_source_date": "2026-09-11",
+  "WTI_source_date": "2026-09-11",
+  "data_as_of": "2026-09-11",
+  "duplicate_status": "PASS",
+  "freshness_status": "PASS",
+  "generated_at": "2026-09-14T10:08:01Z",
+  "last_successful_update": "2026-09-14T10:08:01Z",
+  "missing_fields": [],
+  "quality_flags": [
+    "EMPTY_SHORTENED_SESSION_EXCLUDED",
+    "INCOMPLETE_SESSION_EXCLUDED",
+    "LEGACY_BOOTSTRAP_RECONCILIATION"
+  ],
+  "record_count": 2,
+  "runtime_contract_version": "1.0",
+  "schema_version": "OIS-STATUS-1.0",
+  "service": "OIS Technical Data Engine",
+  "snapshot_id": "e75c3005af076ef34e8186a7789effe5097a54d4f55df9ee889861af74110323",
+  "source": {
+    "brent": "yahoo_chart",
+    "wti": "yahoo_chart"
+  },
+  "source_timestamp": {
+    "brent": "2026-09-11T04:00:00Z",
+    "wti": "2026-09-11T04:00:00Z"
+  },
+  "status": "PASS",
   "validation": "PASS",
-  "schema_version": "OIS-STATUS-1.0"
+  "validation_status": "PASS"
 }
