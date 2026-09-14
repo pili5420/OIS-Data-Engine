@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RATE Production Data Layer 1.0",
+  "type": "object",
+  "required": ["schema_version", "contract_version", "generated_at", "data_as_of", "source", "source_timestamp", "record_count", "validation_status", "quality_flags", "missing_fields", "duplicate_status", "freshness_status"],
+  "properties": {
+    "schema_version": {"enum": ["RATE-STATUS-1.0", "RATE-VALIDATION-1.0", "RATE-PRODUCTION-1.0"]},
+    "contract_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "data_as_of": {"type": "string", "format": "date"},
+    "source": {"type": "string", "minLength": 1},
+    "source_timestamp": {"type": "string", "format": "date-time"},
+    "record_count": {"type": "integer", "minimum": 1},
+    "validation_status": {"const": "PASS"},
+    "quality_flags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "missing_fields": {"const": []},
+    "duplicate_status": {"const": "PASS"},
+    "freshness_status": {"const": "PASS"},
+    "snapshot_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "datasets": {"type": "object", "minProperties": 1},
+    "status": {"const": "PASS"},
+    "validation": {"const": "PASS"}
+  },
+  "additionalProperties": true
+}

@@ -126,6 +126,18 @@ never overwrite the last valid status, validation or chart data.
 See [the runtime specification](docs/PRODUCTION_RUNTIME_SPEC.md) for commands,
 source finalization, schemas, tests, secrets, failure handling and rollback.
 
+## RATE Production Data Layer
+
+RATE is a separate machine-readable evidence layer. Its fixed contract covers
+market/weekly structure, margin financing, institutional flow, smart money,
+fundamental evidence, Top50/Top30 universes, Stage, Rotation, M7, MHE and
+portfolio market data. See [RATE_PRODUCTION_DATA_LAYER_SPEC.md](docs/RATE_PRODUCTION_DATA_LAYER_SPEC.md).
+
+The weekday workflow is `.github/workflows/rate_production.yml`. It reads an
+authorized source bundle from the `RATE_SOURCE_URL` GitHub Actions Secret and an
+optional `RATE_SOURCE_TOKEN`. Missing or invalid source data fails closed;
+production RATE JSON is never padded, guessed or overwritten on FAIL.
+
 ## Chart Payload Schema
 
 Primary contract:

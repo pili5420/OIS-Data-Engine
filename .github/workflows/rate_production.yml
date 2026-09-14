@@ -1,0 +1,56 @@
+name: RATE Production Data Layer
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+        description: Validate a source bundle without publishing
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rate-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Ingest and validate RATE source bundle
+        env:
+          RATE_SOURCE_URL: ${{ secrets.RATE_SOURCE_URL }}
+          RATE_SOURCE_TOKEN: ${{ secrets.RATE_SOURCE_TOKEN }}
+        run: >-
+          python -m src.rate.engine
+          --source-url "$RATE_SOURCE_URL"
+          --candidate "$RUNNER_TEMP/rate-candidate"
+          --report "$RUNNER_TEMP/rate-attempt.json"
+      - name: Publish only a PASS candidate
+        if: success() && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true)
+        run: python -m src.rate.publish --candidate "$RUNNER_TEMP/rate-candidate"
+      - name: Preserve RATE attempt report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rate-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/rate-attempt.json
+            ${{ runner.temp }}/rate-candidate
+          if-no-files-found: warn
+          retention-days: 30
