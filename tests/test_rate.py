@@ -26,7 +26,8 @@ def bundle():
             if "evidence_refs" in row: row["evidence_refs"] = [f"source://{name}/{index}"]
             rows.append(row)
         datasets[name] = rows
-    return {"metadata": {"source": "test-fixture", "source_timestamp": "2026-09-14T00:00:00Z", "data_as_of": "2026-09-14"}, "datasets": datasets}
+    today = datetime.now(timezone.utc).date().isoformat()
+    return {"metadata": {"source": "test-fixture", "source_timestamp": f"{today}T00:00:00Z", "data_as_of": today}, "datasets": datasets}
 
 
 class RateTests(unittest.TestCase):
