@@ -15,10 +15,13 @@ from src.work_state import (EXPECTED_BOOTSTRAP_SNAPSHOT_ID, EXPECTED_WFA_INFRA_E
                             EXPECTED_WFA_INFRA_STATE_HASH, EXPECTED_WFA_INFRA_STATE_ID,
                             STATE_ROOT, STATE_TYPE_INCREMENTAL, STATE_TYPE_INITIAL,
                             bootstrap_initial_state, calculate_state_hash, load_current_state,
+                            run_four_cadence_acceptance, transition_work_cadence,
                             transition_work_state, validate_state_document, validate_state_file,
-                            write_w2_evidence)
+                            write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION)
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_W2_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199"
+EXPECTED_W2_STATE_HASH = "5b8f32d66add733bc3131199b41a7aa1f4c35bf57d266e4970d2e867cb4f9962"
 
 
 class WorkStateBootstrapTests(unittest.TestCase):
@@ -218,6 +221,159 @@ class WorkStateContinuityTests(unittest.TestCase):
         after = (self.tmp / STATE_ROOT / "current_state.json").read_bytes()
         self.assertEqual(after, before)
         self.assertEqual(load_current_state(self.tmp)["current_state_id"], self.prior["current_state_id"])
+
+
+class WorkStateFourCadenceTests(unittest.TestCase):
+    def setUp(self):
+        base = ROOT.parent / ".work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        for path in (self.tmp / STATE_ROOT / "executions").glob("*.json"):
+            execution = read_json(path)
+            if str(execution.get("idempotency_key", "")).startswith("WFA001-W3:"):
+                path.unlink()
+        for path in (self.tmp / STATE_ROOT / "history").glob("*.json"):
+            state = read_json(path)
+            if state.get("execution_type") == "FOUR_CADENCE_INCREMENTAL_ACCEPTANCE":
+                path.unlink()
+        shutil.copy2(self.tmp / STATE_ROOT / "history" / f"{EXPECTED_W2_STATE_ID}.json", self.tmp / STATE_ROOT / "current_state.json")
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["ledger_version"] = 1
+            ledger["ledger_bootstrap"] = False
+            ledger["ledger_reset_detected"] = False
+            ledger["current_state_id"] = EXPECTED_W2_STATE_ID
+            ledger["current_state_hash"] = EXPECTED_W2_STATE_HASH
+            ledger.pop("daily_chain_id", None)
+            ledger.pop("trading_date", None)
+            ledger.pop("last_work_execution_id", None)
+            if ledger_name == "transaction_ledger.json":
+                ledger["transactions"] = []
+            write_json(ledger_path, ledger)
+        self.prior = load_current_state(self.tmp)
+        self.assertEqual(self.prior["current_state_id"], EXPECTED_W2_STATE_ID)
+        self.assertEqual(self.prior["state_type"], STATE_TYPE_INCREMENTAL)
+        self.assertFalse(self.prior["bootstrap"])
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def bump_snapshot(self, suffix):
+        for name in PUBLIC_FILES:
+            doc = read_json(self.tmp / "data/production" / name)
+            new_snapshot = doc["production_snapshot_id"][:-8] + suffix
+            doc["production_snapshot_id"] = new_snapshot
+            doc["snapshot_id"] = new_snapshot
+            doc["run_id"] = str(int(doc["run_id"]) + 1)
+            doc["commit_sha"] = "f" * 40
+            doc["lineage"]["production_snapshot_id"] = new_snapshot
+            doc["lineage"]["run_id"] = doc["run_id"]
+            doc["lineage"]["commit_sha"] = doc["commit_sha"]
+            write_json(self.tmp / "data/production" / name, doc)
+
+    def test_0735_to_0935_continuity_pass(self):
+        first = transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-0735-a")
+        second = transition_work_cadence(self.tmp, "OIS_0935_OPENING", work_execution_id="w3-0935-a")
+        self.assertEqual(second["previous_state_id"], first["current_state_id"])
+        self.assertEqual(second["previous_state_hash"], first["current_state_hash"])
+
+    def test_0935_to_1205_continuity_pass(self):
+        transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-0735-b")
+        second = transition_work_cadence(self.tmp, "OIS_0935_OPENING", work_execution_id="w3-0935-b")
+        third = transition_work_cadence(self.tmp, "OIS_1205_MIDDAY", work_execution_id="w3-1205-b")
+        self.assertEqual(third["previous_state_id"], second["current_state_id"])
+        self.assertEqual(third["previous_state_hash"], second["current_state_hash"])
+
+    def test_1205_to_1935_continuity_pass(self):
+        summaries = run_four_cadence_acceptance(self.tmp)
+        self.assertEqual(summaries[3]["previous_state_id"], summaries[2]["current_state_id"])
+        self.assertEqual(summaries[3]["previous_state_hash"], summaries[2]["current_state_hash"])
+
+    def test_wrong_cadence_order_fails(self):
+        with self.assertRaisesRegex(IntegrityError, "CADENCE_ORDER"):
+            transition_work_cadence(self.tmp, "OIS_0935_OPENING", work_execution_id="w3-wrong-order")
+
+    def test_skipped_cadence_fails(self):
+        transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-0735-skip")
+        with self.assertRaisesRegex(IntegrityError, "CADENCE_ORDER"):
+            transition_work_cadence(self.tmp, "OIS_1205_MIDDAY", work_execution_id="w3-1205-skip")
+
+    def test_null_previous_after_bootstrap_fails(self):
+        state = load_current_state(self.tmp)
+        state["previous_state_id"] = None
+        state["previous_state_hash"] = None
+        state["bootstrap"] = False
+        with self.assertRaisesRegex(IntegrityError, "NULL_PREVIOUS_ONLY_INITIAL"):
+            validate_state_document(state)
+
+    def test_ledger_version_regression_fails(self):
+        ledger = read_json(self.tmp / STATE_ROOT / "portfolio_ledger.json")
+        ledger["ledger_version"] = 0
+        write_json(self.tmp / STATE_ROOT / "portfolio_ledger.json", ledger)
+        with self.assertRaisesRegex(IntegrityError, "PORTFOLIO_LEDGER_ROLLBACK|PORTFOLIO_LEDGER_VERSION"):
+            transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-ledger-regression")
+
+    def test_duplicate_cadence_replay_is_idempotent(self):
+        first = transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-0735-replay")
+        replay = transition_work_cadence(self.tmp, "OIS_0735_PREMARKET")
+        self.assertEqual(replay["idempotency_status"], "IDEMPOTENT_REPLAY")
+        self.assertEqual(replay["current_state_id"], first["current_state_id"])
+
+    def test_duplicate_cadence_replay_after_full_chain_does_not_move_pointer(self):
+        summaries = run_four_cadence_acceptance(self.tmp)
+        final_state = load_current_state(self.tmp)
+        replay = transition_work_cadence(self.tmp, "OIS_0735_PREMARKET")
+        self.assertEqual(replay["idempotency_status"], "IDEMPOTENT_REPLAY")
+        self.assertEqual(replay["current_state_id"], summaries[0]["current_state_id"])
+        self.assertEqual(load_current_state(self.tmp)["current_state_id"], final_state["current_state_id"])
+
+    def test_same_snapshot_four_cadence_chain_passes(self):
+        summaries = run_four_cadence_acceptance(self.tmp)
+        path = write_w3_evidence(self.tmp, summaries)
+        evidence = read_json(path)
+        self.assertEqual(evidence["final_result"], "PASS")
+        self.assertEqual(evidence["cadence_order"], "PASS")
+        self.assertEqual(evidence["state_chain_continuity"], "PASS")
+        self.assertEqual(len({item["production_snapshot_id"] for item in evidence["cadences"]}), 1)
+
+    def test_newer_snapshot_midday_incremental_transition_passes(self):
+        first = transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-0735-new")
+        second = transition_work_cadence(self.tmp, "OIS_0935_OPENING", work_execution_id="w3-0935-new")
+        self.bump_snapshot("abcd1234")
+        third = transition_work_cadence(self.tmp, "OIS_1205_MIDDAY", work_execution_id="w3-1205-new")
+        self.assertEqual(third["previous_state_id"], second["current_state_id"])
+        self.assertNotEqual(third["production_snapshot_id"], second["production_snapshot_id"])
+        current = load_current_state(self.tmp)
+        self.assertEqual(current["decision_state"]["decision_update"], "AUTHORITATIVE_PRODUCTION_SNAPSHOT_CHANGED")
+        self.assertEqual(first["daily_chain_id"], third["daily_chain_id"])
+
+    def test_state_reset_attempt_fails(self):
+        state = load_current_state(self.tmp)
+        state["decision_state"]["state_reset_detected"] = True
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=state["production_snapshot_id"], work_execution_id=state["work_execution_id"], state_hash=state["current_state_hash"])
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["lineage"]["current_state_id"] = state["current_state_id"]
+        write_json(self.tmp / STATE_ROOT / "current_state.json", state)
+        write_json(self.tmp / STATE_ROOT / "history" / f"{state['current_state_id']}.json", state)
+        execution = read_json(self.tmp / STATE_ROOT / "executions" / f"{state['work_execution_id']}.json")
+        execution["current_state_id"] = state["current_state_id"]
+        execution["current_state_hash"] = state["current_state_hash"]
+        write_json(self.tmp / STATE_ROOT / "executions" / f"{state['work_execution_id']}.json", execution)
+        with self.assertRaisesRegex(IntegrityError, "PRIOR_STATE_RESET"):
+            transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-reset")
+
+    def test_duplicate_transaction_append_fails(self):
+        ledger = read_json(self.tmp / STATE_ROOT / "transaction_ledger.json")
+        ledger["transactions"] = [{"transaction_id": "dup"}, {"transaction_id": "dup"}]
+        write_json(self.tmp / STATE_ROOT / "transaction_ledger.json", ledger)
+        with self.assertRaisesRegex(IntegrityError, "DUPLICATE_TRANSACTION"):
+            transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-dup-txn")
 
 
 if __name__ == "__main__":
