@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import hashlib
 import io
@@ -104,7 +105,8 @@ def merge_history(previous: list[dict], incoming: list[dict], migrated: bool, *,
 
 
 def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
-                   now: datetime, flags: list[str], revisions: dict, accepted_revisions: list[dict] | None = None) -> tuple[dict, dict]:
+                   now: datetime, flags: list[str], revisions: dict, accepted_revisions: list[dict] | None = None,
+                   migration_from_legacy: bool = False) -> tuple[dict, dict]:
     commodities = history["commodities"]
     clean, indicators = {}, {}
     for key, rows in commodities.items():
@@ -114,7 +116,8 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
     require(commodities["wti"][-1]["date"] == commodities["brent"][-1]["date"], "LATEST_DATES_UNSYNCHRONIZED")
     now_string = stamp(now)
     snapshot_id = digest(commodities)
-    run_id = os.environ.get("GITHUB_RUN_ID") or f"local-{snapshot_id[:12]}"
+    base_run_id = os.environ.get("GITHUB_RUN_ID") or f"local-{snapshot_id[:12]}"
+    run_id = f"legacy-migration-{base_run_id}" if migration_from_legacy else base_run_id
     commit_sha = os.environ.get("GITHUB_SHA") or "local"
     source_as_of = commodities["wti"][-1]["date"]
     revision_info = revision_summary(accepted_revisions or [])
@@ -129,7 +132,7 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
         "quality_flags": sorted(set(flags)), "missing_fields": [],
         "duplicate_status": "PASS", "freshness_status": "PASS",
         "lineage": {"production_snapshot_id": snapshot_id, "run_id": run_id, "commit_sha": commit_sha,
-                    "source_as_of": source_as_of, **revision_info},
+                    "source_as_of": source_as_of, "migration_from_legacy": migration_from_legacy, **revision_info},
     }
     history.update({**common, "schema_version": "OIS-HISTORY-1.0", "record_count": sum(map(len, commodities.values()))})
     report = {**common, "schema_version": "OIS-VALIDATION-1.0", "record_count": 2,
@@ -180,8 +183,9 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
 def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch, fixture: Path | None = None) -> dict:
     require(candidate.resolve() != root.resolve() and not candidate.exists(), "CANDIDATE_MUST_BE_NEW_DIRECTORY")
     state, rolling, migrated = load_previous(root)
+    legacy_metadata_migration = False
     if migrated:
-        validate_bundle(root, now, check_freshness=False)
+        legacy_metadata_migration = preflight_current_production(root, now)
     revision_evidence = load_revision_evidence(root)
     commodities, flags, revisions, accepted_revisions = {}, [], {}, []
     for key, ticker in (("wti", "CL=F"), ("brent", "BZ=F")):
@@ -201,7 +205,7 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
     if not migrated:
         flags.append("LEGACY_BOOTSTRAP_RECONCILIATION")
     history = {"commodities": commodities}
-    documents, indicators = make_documents(history, rolling, migrated, now, flags, revisions, accepted_revisions)
+    documents, indicators = make_documents(history, rolling, migrated, now, flags, revisions, accepted_revisions, legacy_metadata_migration)
     validate_documents(documents, history, now)
     # Nothing has been written into production; all candidate bytes are private.
     for filename, document in documents.items():
@@ -221,7 +225,79 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
                           for path in sorted((candidate / "data").rglob("*")) if path.is_file()}}
     write_json(candidate / "manifest.json", manifest)
     return {"validation_status": "PASS", "data_as_of": history["data_as_of"], "rolling_count": 180,
-            "candidate": str(candidate), "bootstrap_revised_rows": revisions, "accepted_historical_revisions": accepted_revisions, "publishable": fixture is None}
+            "candidate": str(candidate), "bootstrap_revised_rows": revisions, "accepted_historical_revisions": accepted_revisions, "legacy_metadata_migration": legacy_metadata_migration, "publishable": fixture is None}
+
+
+NEW_METADATA_FIELDS = ("production_snapshot_id", "run_id", "commit_sha", "source_as_of", "published", "lineage")
+LEGACY_SCHEMA_VERSIONS = {
+    "ois_status.json": "OIS-STATUS-1.0",
+    "ois_ingestion_validation.json": "OIS-VALIDATION-1.0",
+    "ois_chart_payload.json": "OIS-CHART-1.0",
+    "ois_chart_rolling_180.json": "OIS-ROLLING-180-1.0",
+}
+
+
+def has_all_new_metadata(document: dict) -> bool:
+    return all(field in document for field in NEW_METADATA_FIELDS)
+
+
+def has_any_new_metadata(document: dict) -> bool:
+    return any(field in document for field in NEW_METADATA_FIELDS)
+
+
+def preflight_current_production(root: Path, now: datetime) -> bool:
+    try:
+        validate_bundle(root, now, check_freshness=False)
+        return False
+    except IntegrityError:
+        validate_legacy_bundle(root, now)
+        return True
+
+
+def validate_legacy_bundle(root: Path, now: datetime) -> None:
+    history = read_json(root / STATE_PATH)
+    require(history["schema_version"] == "OIS-HISTORY-1.0" and history["snapshot_id"] == digest(history["commodities"]), "HISTORY_HASH_MISMATCH")
+    documents = {filename: read_json(root / "data/production" / filename) for filename in PUBLIC_FILES}
+    for filename, document in documents.items():
+        require(document.get("schema_version") == LEGACY_SCHEMA_VERSIONS[filename], f"LEGACY_SCHEMA_UNSUPPORTED:{filename}")
+        require(not has_any_new_metadata(document), f"LEGACY_METADATA_PARTIAL_OR_CONFLICTING:{filename}")
+    validation_time = datetime.fromisoformat(history["generated_at"].replace("Z", "+00:00"))
+    legacy_common = ("runtime_contract_version", "generated_at", "data_as_of", "source", "source_timestamp", "snapshot_id",
+                     "validation_status", "quality_flags", "missing_fields", "duplicate_status", "freshness_status")
+    baseline = documents["ois_status.json"]
+    for filename, document in documents.items():
+        require(all(key in document and document[key] == baseline[key] for key in legacy_common), f"LEGACY_CROSS_FILE_METADATA:{filename}")
+    require(baseline["snapshot_id"] == history["snapshot_id"], "LEGACY_SNAPSHOT_HASH_MISMATCH")
+    require(baseline["data_as_of"] == history["data_as_of"], "LEGACY_SOURCE_AS_OF_MISMATCH")
+    report = documents["ois_ingestion_validation.json"]
+    require(baseline["status"] == baseline["validation"] == report["overall_validation"] == "PASS", "LEGACY_STATUS_MISMATCH")
+    require(report["checks"] == dict.fromkeys(CHECKS, "PASS"), "LEGACY_VALIDATION_CHECKS")
+    require(report["chart_payload_schema"] == "PASS", "LEGACY_CHART_SCHEMA_STATUS")
+    payload = documents["ois_chart_payload.json"]
+    rolling = documents["ois_chart_rolling_180.json"]
+    require(rolling["integrity"] == {"counts": dict.fromkeys(payload["datasets"], 180), "dates_synchronized": True, "duplicate_dates": False}, "LEGACY_ROLLING_INTEGRITY_METADATA")
+    dates = state_dates(rolling)
+    require(dates == sorted(set(dates)) and len(dates) == 180, "LEGACY_ROLLING_DATE_ORDER")
+    for dataset in REQUIRED_DATASETS:
+        records = payload["datasets"][dataset]
+        retained = rolling["datasets"][dataset]
+        require(len(retained) == 180 and retained == records[-180:], "LEGACY_ROLLING_CROSS_FILE_MISMATCH")
+    expected, _ = make_documents(copy.deepcopy(history), None, False, validation_time, history["quality_flags"], {}, [], False)
+    for field in ("datasets", "wti", "brent"):
+        require(payload[field] == expected["ois_chart_payload.json"][field], "LEGACY_PAYLOAD_CALCULATION_MISMATCH")
+    for name, key in (("WTI", "wti"), ("Brent", "brent")):
+        rows = history["commodities"][key]
+        validate_history(rows, now, fresh=False)
+        require(report[name]["source_date"] == rows[-1]["date"] and report[name]["rows"] == len(rows), "LEGACY_SOURCE_METADATA_MISMATCH")
+        require(baseline[f"{name}_source_date"] == rows[-1]["date"], "LEGACY_STATUS_SOURCE_DATE")
+        indicators = read_json(root / "data/production" / f"ois_{key}_indicators.json")
+        validate_indicators(rows, indicators)
+        with (root / "data/production" / f"ois_{key}_clean.csv").open(encoding="utf-8", newline="") as handle:
+            csv_rows = list(csv.DictReader(handle))
+        require(len(csv_rows) == len(rows), "LEGACY_CSV_COUNT_MISMATCH")
+        for csv_row, row in zip(csv_rows, rows):
+            require(csv_row["date"] == row["date"] and csv_row["source"] == row["source"] and
+                    all(float(csv_row[field]) == row[field] for field in FIELDS), "LEGACY_CSV_HISTORY_MISMATCH")
 
 
 def validate_bundle(root: Path, now: datetime, *, check_freshness: bool = True) -> None:
@@ -230,7 +306,7 @@ def validate_bundle(root: Path, now: datetime, *, check_freshness: bool = True) 
     documents = {filename: read_json(root / "data/production" / filename) for filename in PUBLIC_FILES}
     validation_time = now if check_freshness else datetime.fromisoformat(history["generated_at"].replace("Z", "+00:00"))
     validate_documents(documents, history, validation_time)
-    expected, _ = make_documents(history.copy(), None, False, validation_time, history["quality_flags"], {}, [])
+    expected, _ = make_documents(copy.deepcopy(history), None, False, validation_time, history["quality_flags"], {}, [], False)
     for field in ("datasets", "wti", "brent"):
         require(documents["ois_chart_payload.json"][field] == expected["ois_chart_payload.json"][field], "PAYLOAD_CALCULATION_MISMATCH")
     require(documents["ois_status.json"]["snapshot_id"] == history["snapshot_id"], "SNAPSHOT_HASH_MISMATCH")

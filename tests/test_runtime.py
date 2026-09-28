@@ -20,7 +20,7 @@ import yaml
 from scripts.prepare_pages import prepare_pages
 from src.indicators.technical import build_indicators
 from src.runtime.engine import (CSV_FIELDS, STATE_PATH, build_candidate, encoded, git, load_previous,
-                                merge_history, validate_bundle, write_json)
+                                merge_history, validate_bundle, validate_legacy_bundle, write_json)
 from src.runtime.publish import publish
 from src.runtime.revisions import REVISION_ID, row_hash
 from src.runtime.source import IntegrityError, TransientError, get_json, latest_completed, normalize, schedule, stamp
@@ -347,6 +347,64 @@ class RuntimeIntegrationTests(unittest.TestCase):
         build_candidate(root, second, now, fetcher=lambda ticker, _: (copy.deepcopy(new_rows if ticker == "CL=F" else rows), []))
         self.assertEqual(read_json(first / STATE_PATH)["snapshot_id"], read_json(second / STATE_PATH)["snapshot_id"])
         self.assertEqual(read_json(first / "data/production/ois_chart_rolling_180.json")["datasets"], read_json(second / "data/production/ois_chart_rolling_180.json")["datasets"])
+
+
+    def legacy_candidate_root(self, label):
+        root = self.copy_candidate(label)
+        for name in PUBLIC_FILES:
+            doc_path = root / "data/production" / name
+            doc = read_json(doc_path)
+            for key in ("production_snapshot_id", "run_id", "commit_sha", "source_as_of", "published", "lineage"):
+                doc.pop(key, None)
+            write_json(doc_path, doc)
+        return root
+
+    def test_valid_legacy_snapshot_metadata_migration_passes_private_candidate_only(self):
+        root = self.legacy_candidate_root("legacy-migration-root")
+        before = {name: read_json(root / "data/production" / name) for name in PUBLIC_FILES}
+        validate_legacy_bundle(root, NOW)
+        candidate = self.base / "legacy-migration-candidate"
+        result = build_candidate(root, candidate, NOW, fetcher=lambda *_: (copy.deepcopy(self.rows), []))
+        self.assertTrue(result["legacy_metadata_migration"])
+        docs = {name: read_json(candidate / "data/production" / name) for name in PUBLIC_FILES}
+        self.assertTrue(all(doc["production_snapshot_id"] == doc["snapshot_id"] for doc in docs.values()))
+        self.assertEqual(len({json.dumps(doc["lineage"], sort_keys=True) for doc in docs.values()}), 1)
+        self.assertTrue(all(doc["lineage"]["migration_from_legacy"] is True for doc in docs.values()))
+        self.assertTrue(all(doc["published"] is True for doc in docs.values()))
+        self.assertEqual(read_json(candidate / STATE_PATH)["snapshot_id"], read_json(root / STATE_PATH)["snapshot_id"])
+        self.assertEqual(read_json(candidate / "data/production/ois_chart_rolling_180.json")["datasets"], read_json(root / "data/production/ois_chart_rolling_180.json")["datasets"])
+        validate_bundle(candidate, NOW)
+        self.assertEqual(before, {name: read_json(root / "data/production" / name) for name in PUBLIC_FILES})
+
+    def test_legacy_unknown_schema_partial_metadata_conflict_and_corruption_fail_closed(self):
+        mutations = {
+            "unknown_schema": lambda docs: docs["ois_status.json"].update(schema_version="OIS-STATUS-0.9"),
+            "partial_metadata": lambda docs: docs["ois_status.json"].update(production_snapshot_id=docs["ois_status.json"]["snapshot_id"]),
+            "conflicting_metadata": lambda docs: docs["ois_status.json"].update(production_snapshot_id=docs["ois_status.json"]["snapshot_id"], run_id="old", commit_sha="old", source_as_of=docs["ois_status.json"]["data_as_of"], published=True, lineage={"production_snapshot_id":"bad"}),
+            "corrupt_cross_file": lambda docs: docs["ois_ingestion_validation.json"].update(snapshot_id="0" * 64),
+        }
+        for name, mutate in mutations.items():
+            root = self.legacy_candidate_root("legacy-fail-" + name)
+            docs = {filename: read_json(root / "data/production" / filename) for filename in PUBLIC_FILES}
+            mutate(docs)
+            for filename, doc in docs.items():
+                write_json(root / "data/production" / filename, doc)
+            before = {filename: (root / "data/production" / filename).read_bytes() for filename in PUBLIC_FILES}
+            with self.subTest(name=name), self.assertRaises(IntegrityError):
+                build_candidate(root, self.base / ("legacy-blocked-" + name), NOW, fetcher=lambda *_: (copy.deepcopy(self.rows), []))
+            self.assertEqual(before, {filename: (root / "data/production" / filename).read_bytes() for filename in PUBLIC_FILES})
+
+    def test_atomic_publisher_rejects_legacy_candidate_until_current_schema_passes(self):
+        root = self.legacy_candidate_root("legacy-publish-root")
+        candidate = self.base / "legacy-publish-candidate"
+        build_candidate(root, candidate, NOW, fetcher=lambda *_: (copy.deepcopy(self.rows), []))
+        manifest = read_json(candidate / "manifest.json")
+        self.assertTrue(manifest["publishable"])
+        status = read_json(candidate / "data/production/ois_status.json")
+        status.pop("production_snapshot_id")
+        write_json(candidate / "data/production/ois_status.json", status)
+        with self.assertRaisesRegex(IntegrityError, "HASH_MISMATCH|SCHEMA"):
+            publish(root, candidate, "main", dry_run=True)
 
     def test_offline_fixture_is_never_publishable(self):
         fixture = self.base / "fixture.json"
