@@ -6,7 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,16 +15,25 @@ if str(ROOT) not in sys.path:
 
 from src.runtime.engine import CSV_FIELDS, STATE_PATH, build_candidate, digest, validate_bundle, write_json
 from src.runtime.revisions import REVISION_ID, row_hash, validate_revision_evidence
+from src.runtime.source import schedule
 from src.runtime.validation import PUBLIC_FILES, FIELDS, read_json
 
 ACCEPTANCE_ID = "CR-OIS-PROD-HR-001"
-AS_OF = datetime(2026, 9, 14, 10, tzinfo=timezone.utc)
 
 
 def read_clean(path: Path) -> list[dict]:
     with path.open(encoding="utf-8", newline="") as handle:
         return [{**row, **{field: float(row[field]) for field in FIELDS}, "source_timestamp": row.get("source_timestamp") or row["date"] + "T04:00:00Z"} for row in csv.DictReader(handle)]
 
+
+
+def acceptance_as_of(current: dict[str, list[dict]]):
+    latest_dates = {rows[-1]["date"] for rows in current.values()}
+    if len(latest_dates) != 1:
+        raise ValueError("UNSYNCHRONIZED_ACCEPTANCE_SOURCE_DATE")
+    latest = next(iter(latest_dates))
+    sessions = schedule(latest, latest)
+    return sessions[latest] + timedelta(hours=7)
 
 def write_clean(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,17 +47,32 @@ def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True, encoding="utf-8").strip()
 
 
-def prepare_previous_root(repo: Path, work: Path) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
-    archived = {"wti": read_clean(repo / "data/archive/2026-09-11/ois_wti_clean.csv"),
-                "brent": read_clean(repo / "data/archive/2026-09-11/ois_brent_clean.csv")}
+def approved_previous_row(repo: Path, instrument: str, current_row: dict) -> dict:
+    evidence = read_json(repo / "data/runtime/approved_historical_revisions.json")
+    matches = []
+    for entry in evidence.get("revisions", []):
+        affected = entry.get("affected_record", {})
+        if affected.get("instrument") != instrument or affected.get("date") != current_row.get("date"):
+            continue
+        if entry.get("after_hash") == row_hash(current_row):
+            old_values = affected.get("old_values", {})
+            matches.append({"date": affected["date"], **old_values, "source": entry["source_provenance"], "source_timestamp": current_row.get("source_timestamp") or affected["date"] + "T04:00:00Z"})
+    if len(matches) != 1:
+        raise ValueError(f"APPROVED_PREVIOUS_REVISION_MATCH:{instrument}:{len(matches)}")
+    return matches[0]
+
+
+def prepare_previous_root(repo: Path, work: Path) -> tuple[dict[str, list[dict]], dict[str, list[dict]], object]:
     current = {"wti": read_clean(repo / "data/production/ois_wti_clean.csv"),
                "brent": read_clean(repo / "data/production/ois_brent_clean.csv")}
+    as_of = acceptance_as_of(current)
     previous = {key: [dict(row) for row in rows] for key, rows in current.items()}
     for key in ("wti", "brent"):
-        archived_row = next(row for row in archived[key] if row["date"] == "2026-09-11")
+        current_row = next(row for row in current[key] if row["date"] == "2026-09-11")
+        prior_row = approved_previous_row(repo, key, current_row)
         for index, row in enumerate(previous[key]):
             if row["date"] == "2026-09-11":
-                previous[key][index] = archived_row
+                previous[key][index] = prior_row
                 break
     work.mkdir(parents=True)
     git(work, "init", "-b", "main")
@@ -58,12 +82,12 @@ def prepare_previous_root(repo: Path, work: Path) -> tuple[dict[str, list[dict]]
     for key, rows in previous.items():
         write_clean(work / f"data/production/ois_{key}_clean.csv", rows)
     baseline = work.parent / "baseline-candidate"
-    build_candidate(work, baseline, AS_OF, fetcher=lambda ticker, _now: (previous["wti" if ticker == "CL=F" else "brent"], []))
+    build_candidate(work, baseline, as_of, fetcher=lambda ticker, _now: (previous["wti" if ticker == "CL=F" else "brent"], []))
     shutil.copytree(baseline / "data", work / "data", dirs_exist_ok=True)
     shutil.copy2(repo / "data/runtime/approved_historical_revisions.json", work / "data/runtime/approved_historical_revisions.json")
     git(work, "add", "data")
     git(work, "commit", "-m", "accepted previous production snapshot")
-    return previous, current
+    return previous, current, as_of
 
 
 def build_evidence(repo: Path, output: Path) -> dict:
@@ -71,10 +95,10 @@ def build_evidence(repo: Path, output: Path) -> dict:
         shutil.rmtree(output)
     output.mkdir(parents=True)
     work = output / "previous-production-root"
-    previous, current = prepare_previous_root(repo, work)
+    previous, current, as_of = prepare_previous_root(repo, work)
     candidate = output / "candidate"
-    result = build_candidate(work, candidate, AS_OF, fetcher=lambda ticker, _now: (current["wti" if ticker == "CL=F" else "brent"], []))
-    validate_bundle(candidate, AS_OF)
+    result = build_candidate(work, candidate, as_of, fetcher=lambda ticker, _now: (current["wti" if ticker == "CL=F" else "brent"], []))
+    validate_bundle(candidate, as_of)
     evidence = read_json(repo / "data/runtime/approved_historical_revisions.json")
     revision_validation = validate_revision_evidence(evidence)
     docs = {name: read_json(candidate / "data/production" / name) for name in PUBLIC_FILES}
@@ -95,7 +119,7 @@ def build_evidence(repo: Path, output: Path) -> dict:
     before = {name: (fail_root / "data/production" / name).read_bytes() for name in PUBLIC_FILES}
     fail_closed = "FAIL"
     try:
-        build_candidate(fail_root, output / "blocked-candidate", AS_OF, fetcher=lambda ticker, _now: (current["wti" if ticker == "CL=F" else "brent"], []))
+        build_candidate(fail_root, output / "blocked-candidate", as_of, fetcher=lambda ticker, _now: (current["wti" if ticker == "CL=F" else "brent"], []))
     except Exception as exc:
         after = {name: (fail_root / "data/production" / name).read_bytes() for name in PUBLIC_FILES}
         fail_closed = "PASS" if before == after and "HISTORICAL_SOURCE_REVISION:2026-09-11" in str(exc) else "FAIL"
@@ -110,6 +134,7 @@ def build_evidence(repo: Path, output: Path) -> dict:
         "acceptance_id": ACCEPTANCE_ID,
         "validation_status": "PASS" if result["validation_status"] == "PASS" and revision_validation["validation_status"] == "PASS" and len(lineage_values) == 1 and len(production_snapshot_ids) == 1 and fail_closed == "PASS" else "FAIL",
         "revision_id": REVISION_ID,
+        "acceptance_as_of": as_of.isoformat(),
         "historical_revision_recovery": "PASS",
         "production_validation": "PASS",
         "published": all(docs[name]["published"] is True for name in PUBLIC_FILES),
