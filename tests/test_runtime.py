@@ -22,7 +22,7 @@ from src.indicators.technical import build_indicators
 from src.runtime.engine import (CSV_FIELDS, STATE_PATH, build_candidate, encoded, git, load_previous,
                                 merge_history, validate_bundle, validate_legacy_bundle, write_json)
 from src.runtime.publish import publish
-from src.runtime.revisions import REVISION_ID, row_hash
+from src.runtime.revisions import REVISION_ID, match_approved_revision, row_hash
 from src.runtime.source import IntegrityError, TransientError, get_json, latest_completed, normalize, schedule, stamp
 from src.runtime.validation import FIELDS, PUBLIC_FILES, read_json, validate_history, validate_indicators
 
@@ -87,6 +87,44 @@ class RuntimeUnitTests(unittest.TestCase):
         changed[-2]["close"] += .1
         with self.assertRaisesRegex(IntegrityError, "SOURCE_REVISION"):
             merge_history(self.rows, changed, True)
+
+    def test_revision_matcher_scans_superseded_same_day_evidence(self):
+        old_row = copy.deepcopy(self.rows[-2])
+        old_row["date"] = "2026-09-11"
+        old_row["source_timestamp"] = "2026-09-11T04:00:00Z"
+        incoming = copy.deepcopy(old_row)
+        incoming["volume"] = float(incoming["volume"]) + 17
+        stale_old = copy.deepcopy(old_row)
+        stale_old["close"] = float(stale_old["close"]) - 1
+        evidence = {"revisions": [
+            {
+                "revision_id": REVISION_ID, "source_provenance": "yahoo_chart",
+                "upstream_revision_timestamp": old_row["date"] + "T04:00:00Z",
+                "approval_status": "APPROVED", "revision_reason": "superseded upstream correction",
+                "before_hash": row_hash(stale_old), "after_hash": row_hash(incoming),
+                "affected_record": {"dataset": "historical_prices", "instrument": "wti", "date": old_row["date"],
+                                    "fields": ["volume"],
+                                    "old_values": {field: stale_old[field] for field in FIELDS},
+                                    "corrected_values": {field: incoming[field] for field in FIELDS}},
+            },
+            {
+                "revision_id": REVISION_ID, "source_provenance": "yahoo_chart",
+                "upstream_revision_timestamp": old_row["date"] + "T04:00:00Z",
+                "approval_status": "APPROVED", "revision_reason": "current upstream correction",
+                "before_hash": row_hash(old_row), "after_hash": row_hash(incoming),
+                "affected_record": {"dataset": "historical_prices", "instrument": "wti", "date": old_row["date"],
+                                    "fields": ["volume"],
+                                    "old_values": {field: old_row[field] for field in FIELDS},
+                                    "corrected_values": {field: incoming[field] for field in FIELDS}},
+            },
+        ]}
+        accepted = match_approved_revision(evidence=evidence, instrument="wti", old_row=old_row, incoming_row=incoming)
+        self.assertIsNotNone(accepted)
+        self.assertEqual(accepted["before_hash"], row_hash(old_row))
+        merged, revisions, accepted_rows = merge_history([old_row], [incoming], True, instrument="wti", revision_evidence=evidence)
+        self.assertEqual(revisions, 1)
+        self.assertEqual(accepted_rows[0]["after_hash"], row_hash(incoming))
+        self.assertEqual(merged[0], incoming)
 
     def test_freshness_weekend_and_six_hour_finalization(self):
         self.assertEqual(latest_completed(datetime(2026, 9, 14, 10, tzinfo=timezone.utc)), "2026-09-11")

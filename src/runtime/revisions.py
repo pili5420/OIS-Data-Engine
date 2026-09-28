@@ -79,12 +79,12 @@ def match_approved_revision(*, evidence: Mapping[str, Any], instrument: str, old
         if affected.get("instrument") != instrument or affected.get("date") != old_row.get("date"):
             continue
         if row_hash(old_row) != entry.get("before_hash"):
-            return None
+            continue
         if row_hash(incoming_row) != entry.get("after_hash"):
-            return None
+            continue
         changed = [field for field in FIELDS if float(old_row[field]) != float(incoming_row[field])]
         if sorted(changed) != sorted(affected.get("fields", [])):
-            return None
+            continue
         return {"revision_id": entry["revision_id"], "instrument": instrument, "date": old_row["date"],
                 "fields": changed, "before_hash": entry["before_hash"], "after_hash": entry["after_hash"],
                 "source_provenance": entry["source_provenance"],
