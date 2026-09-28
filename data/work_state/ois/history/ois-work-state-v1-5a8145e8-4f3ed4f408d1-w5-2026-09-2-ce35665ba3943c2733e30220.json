@@ -1,6 +1,6 @@
 {
   "bootstrap": false,
-  "cadence": "19:35",
+  "cadence": "12:05",
   "cadence_chain": [
     {
       "cadence": "07:35",
@@ -31,24 +31,14 @@
       "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-a8af1f2131cddf08807bc4da",
       "sequence": 3,
       "work_execution_id": "w5-2026-09-25-1205"
-    },
-    {
-      "cadence": "19:35",
-      "cadence_mode": "OIS_1935_EVENING",
-      "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
-      "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
-      "previous_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
-      "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
-      "sequence": 4,
-      "work_execution_id": "w5-2026-09-25-1935"
     }
   ],
-  "cadence_mode": "OIS_1935_EVENING",
+  "cadence_mode": "OIS_1205_MIDDAY",
   "cadence_order": "PASS",
-  "cadence_sequence": 4,
+  "cadence_sequence": 3,
   "created_at": "2026-09-28T22:41:25Z",
-  "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
-  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+  "current_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
   "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
   "decision_state": {
     "decision_state_type": "FOUR_CADENCE_INCREMENTAL",
@@ -61,8 +51,8 @@
   },
   "evidence_state": {
     "added_evidence": {
-      "cadence": "19:35",
-      "evidence_type": "evening",
+      "cadence": "12:05",
+      "evidence_type": "midday",
       "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
       "source_as_of": "2026-09-25",
       "source_run_id": "36490746612"
@@ -116,21 +106,14 @@
         "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
         "source_as_of": "2026-09-25",
         "source_run_id": "36490746612"
-      },
-      {
-        "cadence": "19:35",
-        "evidence_type": "evening",
-        "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
-        "source_as_of": "2026-09-25",
-        "source_run_id": "36490746612"
       }
     ],
     "decision_update": "NO_CHANGE",
     "fallback_used": false,
     "fixture_used": false,
     "incremental_update": "PASS",
-    "prior_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
-    "prior_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
+    "prior_state_hash": "a8af1f2131cddf08807bc4dafae8f473f0674b7fd41c8363335899915a8a6a0f",
+    "prior_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-a8af1f2131cddf08807bc4da",
     "production_documents": [
       "ois_status.json",
       "ois_ingestion_validation.json",
@@ -156,12 +139,12 @@
   "ledger_reset_detected": false,
   "lineage": {
     "bootstrap": false,
-    "cadence": "19:35",
-    "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
-    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+    "cadence": "12:05",
+    "current_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
     "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
-    "previous_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
-    "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
+    "previous_state_hash": "a8af1f2131cddf08807bc4dafae8f473f0674b7fd41c8363335899915a8a6a0f",
+    "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-a8af1f2131cddf08807bc4da",
     "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
     "source_as_of": "2026-09-25",
     "source_commit_sha": "db7a0823352430786ca6df2e03cad4a937efc6b0",
@@ -170,8 +153,8 @@
   },
   "portfolio_ledger_continuity": "PASS",
   "portfolio_ledger_version": 1,
-  "previous_state_hash": "ce35665ba3943c2733e302203e8047bfaa16fe4d408938ba098dacb9e5a89625",
-  "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-ce35665ba3943c2733e30220",
+  "previous_state_hash": "a8af1f2131cddf08807bc4dafae8f473f0674b7fd41c8363335899915a8a6a0f",
+  "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-a8af1f2131cddf08807bc4da",
   "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
   "report_qa_status": "PASS",
   "source_as_of": "2026-09-25",
@@ -185,5 +168,5 @@
   "trading_date": "2026-09-25",
   "transaction_ledger_continuity": "PASS",
   "transaction_ledger_version": 1,
-  "work_execution_id": "w5-2026-09-25-1935"
+  "work_execution_id": "w5-2026-09-25-1205"
 }

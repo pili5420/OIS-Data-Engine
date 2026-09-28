@@ -1,9 +1,9 @@
 {
   "created_at": "2026-09-28T11:45:07Z",
-  "current_state_hash": "41c2bea2fad6cacc4c4e815df066f54f4d8fdc3603139f591d5c7e707ef1a192",
-  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w4-recovery-41c2bea2fad6cacc4c4e815d",
-  "daily_chain_id": "ois-work-daily-chain-ddc038f140141b7f98d93e70",
-  "last_work_execution_id": "w4-recovery",
+  "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+  "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
+  "last_work_execution_id": "w5-2026-09-25-1935",
   "ledger_bootstrap": false,
   "ledger_reset_detected": false,
   "ledger_schema_version": "OIS-WORK-TRANSACTION-LEDGER-1.0",
