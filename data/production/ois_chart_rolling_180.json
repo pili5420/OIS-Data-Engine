@@ -1,6 +1,6 @@
 {
   "appended_trading_days": 0,
-  "commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+  "commit_sha": "d5dca19bd6b647b40507f1fd87d3773a67e7d028",
   "data_as_of": "2026-09-25",
   "datasets": {
     "brent_macd": [
@@ -7580,7 +7580,7 @@
   "duplicate_status": "PASS",
   "first_source_date": "2026-01-08",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-28T10:40:09Z",
+  "generated_at": "2026-09-28T12:00:38Z",
   "integrity": {
     "counts": {
       "brent_macd": 180,
@@ -7602,12 +7602,12 @@
   "lineage": {
     "approved_revision_count": 0,
     "approved_revisions": [],
-    "commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+    "commit_sha": "d5dca19bd6b647b40507f1fd87d3773a67e7d028",
     "historical_revision_recovery": "NOT_APPLICABLE",
     "migration_from_legacy": false,
     "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
     "revision_id": null,
-    "run_id": "36410773469",
+    "run_id": "36418817056",
     "source_as_of": "2026-09-25"
   },
   "missing_fields": [],
@@ -7618,7 +7618,7 @@
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 180,
-  "run_id": "36410773469",
+  "run_id": "36418817056",
   "runtime_contract_version": "1.0",
   "runtime_update_result": "NO_NEW_TRADING_DAY",
   "schema_version": "OIS-ROLLING-180-1.0",
@@ -7628,7 +7628,7 @@
     "wti": "yahoo_chart"
   },
   "source_as_of": "2026-09-25",
-  "source_payload_generated_at": "2026-09-28T10:40:09Z",
+  "source_payload_generated_at": "2026-09-28T12:00:38Z",
   "source_timestamp": {
     "brent": "2026-09-25T04:00:00Z",
     "wti": "2026-09-25T04:00:00Z"
