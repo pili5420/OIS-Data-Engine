@@ -1,0 +1,96 @@
+{
+  "baseline": {
+    "cadence": "19:35",
+    "current_state_hash": "0b33394847edbab10cb9d7072789072e5550ca8aad53f3d8776a58acf7ad5d5f",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-ec3109ab-cda-0b33394847edbab10cb9d707",
+    "daily_chain_id": "ois-work-daily-chain-ddc038f140141b7f98d93e70",
+    "portfolio_ledger_version": 1,
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "transaction_ledger_version": 1,
+    "work_execution_id": "ec3109ab-cdaa-457e-88a5-039ce9fd2591"
+  },
+  "data_gate_status": "PASS",
+  "failure_scenarios": [
+    {
+      "accepted_state_created": false,
+      "failure_class": "PRODUCTION_DATA_VALIDATION_FAIL",
+      "failure_execution_id": "w4-production_data_validation_fail",
+      "portfolio_ledger_mutated_on_failure": false,
+      "rollback_status": "PASS",
+      "scenario": "PRODUCTION_DATA_VALIDATION_FAIL",
+      "state_commit_status": "FAIL",
+      "state_mutated_on_failure": false,
+      "transaction_ledger_mutated_on_failure": false
+    },
+    {
+      "accepted_state_created": false,
+      "failure_class": "STATE_CANDIDATE_VALIDATION_FAIL",
+      "failure_execution_id": "w4-state_candidate_validation_fail",
+      "portfolio_ledger_mutated_on_failure": false,
+      "rollback_status": "PASS",
+      "scenario": "STATE_CANDIDATE_VALIDATION_FAIL",
+      "state_commit_status": "FAIL",
+      "state_mutated_on_failure": false,
+      "transaction_ledger_mutated_on_failure": false
+    },
+    {
+      "accepted_state_created": false,
+      "atomic_rollback_status": "PASS",
+      "failure_class": "ATOMIC_COMMIT_FAIL",
+      "failure_execution_id": "w4-atomic_commit_fail",
+      "portfolio_ledger_mutated_on_failure": false,
+      "rollback_status": "PASS",
+      "scenario": "ATOMIC_COMMIT_FAIL",
+      "state_commit_status": "FAIL",
+      "state_mutated_on_failure": false,
+      "transaction_ledger_mutated_on_failure": false
+    },
+    {
+      "accepted_state_created": false,
+      "failure_class": "LEDGER_MUTATION_FAIL",
+      "failure_execution_id": "w4-ledger_mutation_fail",
+      "portfolio_ledger_mutated_on_failure": false,
+      "rollback_status": "PASS",
+      "scenario": "LEDGER_MUTATION_FAIL",
+      "state_commit_status": "FAIL",
+      "state_mutated_on_failure": false,
+      "transaction_ledger_mutated_on_failure": false
+    }
+  ],
+  "final_result": "PASS",
+  "gate_evidence": {
+    "data_gate_fail_case": {
+      "commit_blocked": true,
+      "data_gate_status": "FAIL",
+      "last_known_good_preserved": true,
+      "render_gate_status": "NOT_RUN"
+    },
+    "data_gate_status": "PASS",
+    "render_fail_case": {
+      "data_fail_misclassified": false,
+      "data_gate_status": "PASS",
+      "decision_state_commit_policy": "BLOCK_RENDER_DEPENDENT_REPORT_COMMIT",
+      "native_renderer_available": false,
+      "render_gate_status": "FAIL",
+      "static_fallback_used": false
+    },
+    "render_gate_separation_status": "PASS"
+  },
+  "idempotency_status": "PASS",
+  "recovery": {
+    "current_state_hash": "41c2bea2fad6cacc4c4e815df066f54f4d8fdc3603139f591d5c7e707ef1a192",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w4-recovery-41c2bea2fad6cacc4c4e815d",
+    "portfolio_ledger_recovery": "PASS",
+    "previous_state_hash": "0b33394847edbab10cb9d7072789072e5550ca8aad53f3d8776a58acf7ad5d5f",
+    "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-ec3109ab-cda-0b33394847edbab10cb9d707",
+    "recovery_lineage_status": "PASS",
+    "report_qa_status": "PASS",
+    "state_commit_status": "PASS",
+    "transaction_ledger_recovery": "PASS",
+    "work_execution_id": "w4-recovery"
+  },
+  "render_gate_separation_status": "PASS",
+  "repo_head": "f0486ec508d66181525f404083a46335fccbd06f",
+  "system": "OIS V4.4",
+  "wfa_id": "WFA-001 OIS W4"
+}

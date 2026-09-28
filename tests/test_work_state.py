@@ -15,13 +15,20 @@ from src.work_state import (EXPECTED_BOOTSTRAP_SNAPSHOT_ID, EXPECTED_WFA_INFRA_E
                             EXPECTED_WFA_INFRA_STATE_HASH, EXPECTED_WFA_INFRA_STATE_ID,
                             STATE_ROOT, STATE_TYPE_INCREMENTAL, STATE_TYPE_INITIAL,
                             bootstrap_initial_state, calculate_state_hash, load_current_state,
-                            run_four_cadence_acceptance, transition_work_cadence,
+                            render_gate_separation_evidence, run_failure_scenario,
+                            run_four_cadence_acceptance, run_w4_failure_recovery_acceptance,
+                            store_bytes_hashes, transition_recovery_state, transition_work_cadence,
                             transition_work_state, validate_state_document, validate_state_file,
-                            write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION)
+                            write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION,
+                            validate_authoritative_production_snapshot, load_work_ledgers,
+                            build_incremental_state, atomic_commit_incremental_state,
+                            EXECUTION_TYPE_RECOVERY)
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_W2_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199"
 EXPECTED_W2_STATE_HASH = "5b8f32d66add733bc3131199b41a7aa1f4c35bf57d266e4970d2e867cb4f9962"
+EXPECTED_W3_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-ec3109ab-cda-0b33394847edbab10cb9d707"
+EXPECTED_W3_STATE_HASH = "0b33394847edbab10cb9d7072789072e5550ca8aad53f3d8776a58acf7ad5d5f"
 
 
 class WorkStateBootstrapTests(unittest.TestCase):
@@ -374,6 +381,151 @@ class WorkStateFourCadenceTests(unittest.TestCase):
         write_json(self.tmp / STATE_ROOT / "transaction_ledger.json", ledger)
         with self.assertRaisesRegex(IntegrityError, "DUPLICATE_TRANSACTION"):
             transition_work_cadence(self.tmp, "OIS_0735_PREMARKET", work_execution_id="w3-dup-txn")
+
+
+class WorkStateFailureRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        base = ROOT.parent / ".work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        for path in (self.tmp / STATE_ROOT / "executions").glob("*.json"):
+            doc = read_json(path)
+            if str(doc.get("work_execution_id", "")).startswith("w4") or doc.get("execution_type") in {"FAILURE_ATTEMPT", EXECUTION_TYPE_RECOVERY}:
+                path.unlink()
+        failure_dir = self.tmp / STATE_ROOT / "failures"
+        if failure_dir.exists():
+            shutil.rmtree(failure_dir)
+        for path in (self.tmp / STATE_ROOT / "history").glob("*.json"):
+            state = read_json(path)
+            if state.get("execution_type") == EXECUTION_TYPE_RECOVERY:
+                path.unlink()
+        shutil.copy2(self.tmp / STATE_ROOT / "history" / f"{EXPECTED_W3_STATE_ID}.json", self.tmp / STATE_ROOT / "current_state.json")
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["ledger_version"] = 1
+            ledger["ledger_bootstrap"] = False
+            ledger["ledger_reset_detected"] = False
+            ledger["current_state_id"] = EXPECTED_W3_STATE_ID
+            ledger["current_state_hash"] = EXPECTED_W3_STATE_HASH
+            ledger["last_work_execution_id"] = "ec3109ab-cdaa-457e-88a5-039ce9fd2591"
+            if ledger_name == "transaction_ledger.json":
+                ledger["transactions"] = []
+            write_json(ledger_path, ledger)
+        self.baseline = load_current_state(self.tmp)
+        self.assertEqual(self.baseline["current_state_id"], EXPECTED_W3_STATE_ID)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def assert_failure_preserves_store(self, scenario):
+        before = store_bytes_hashes(self.tmp)
+        failure = run_failure_scenario(self.tmp, scenario, failure_execution_id=f"test-{scenario}")
+        after = store_bytes_hashes(self.tmp)
+        self.assertEqual(after, before)
+        self.assertFalse(failure["accepted_state_created"])
+        self.assertEqual(failure["rollback_status"], "PASS")
+        self.assertFalse(failure["state_mutated_on_failure"])
+        self.assertFalse(failure["portfolio_ledger_mutated_on_failure"])
+        self.assertFalse(failure["transaction_ledger_mutated_on_failure"])
+        self.assertEqual(load_current_state(self.tmp)["current_state_id"], self.baseline["current_state_id"])
+        return failure
+
+    def test_production_validation_fail_current_state_unchanged(self):
+        self.assert_failure_preserves_store("PRODUCTION_DATA_VALIDATION_FAIL")
+
+    def test_production_validation_fail_ledgers_unchanged(self):
+        failure = self.assert_failure_preserves_store("PRODUCTION_DATA_VALIDATION_FAIL")
+        self.assertEqual(failure["portfolio_ledger_hash_before"], failure["portfolio_ledger_hash_after"])
+        self.assertEqual(failure["transaction_ledger_hash_before"], failure["transaction_ledger_hash_after"])
+
+    def test_candidate_validation_fail_no_accepted_state(self):
+        failure = self.assert_failure_preserves_store("STATE_CANDIDATE_VALIDATION_FAIL")
+        self.assertFalse(failure["accepted_state_created"])
+
+    def test_wrong_previous_state_id_hash_fails(self):
+        failure = self.assert_failure_preserves_store("STATE_CANDIDATE_VALIDATION_FAIL")
+        self.assertRegex(failure["error_code"], "WORK_STATE_LINEAGE|WORK_STATE_HASH_MISMATCH")
+
+    def test_atomic_commit_partial_failure_rolls_back(self):
+        failure = self.assert_failure_preserves_store("ATOMIC_COMMIT_FAIL")
+        self.assertEqual(failure["atomic_rollback_status"], "PASS")
+
+    def test_current_pointer_update_failure_rolls_back(self):
+        before = store_bytes_hashes(self.tmp)
+        production = validate_authoritative_production_snapshot(self.tmp)
+        portfolio, transactions = load_work_ledgers(self.tmp)
+        bundle = build_incremental_state(work_execution_id="w4-pointer-fail", prior=self.baseline, production=production, portfolio=portfolio, transactions=transactions, created_at="2026-09-29T00:00:00Z")
+        with self.assertRaisesRegex(IntegrityError, "CURRENT_POINTER_FAILURE"):
+            atomic_commit_incremental_state(self.tmp, bundle, fail_after_stage="current_pointer", execution_type=EXECUTION_TYPE_RECOVERY)
+        self.assertEqual(store_bytes_hashes(self.tmp), before)
+        self.assertEqual(load_current_state(self.tmp)["current_state_id"], self.baseline["current_state_id"])
+
+    def test_portfolio_ledger_mutation_failure_rolls_back(self):
+        ledger = read_json(self.tmp / STATE_ROOT / "portfolio_ledger.json")
+        ledger["ledger_version"] = 0
+        write_json(self.tmp / STATE_ROOT / "portfolio_ledger.json", ledger)
+        with self.assertRaisesRegex(IntegrityError, "PORTFOLIO_LEDGER"):
+            transition_recovery_state(self.tmp, work_execution_id="w4-bad-portfolio")
+
+    def test_transaction_ledger_mutation_failure_rolls_back(self):
+        self.assert_failure_preserves_store("LEDGER_MUTATION_FAIL")
+
+    def test_duplicate_transaction_fails(self):
+        failure = self.assert_failure_preserves_store("LEDGER_MUTATION_FAIL")
+        self.assertIn("DUPLICATE_TRANSACTION", failure["error_code"])
+
+    def test_data_gate_fail_render_gate_separate(self):
+        failure = self.assert_failure_preserves_store("PRODUCTION_DATA_VALIDATION_FAIL")
+        gate = render_gate_separation_evidence(self.tmp)
+        self.assertEqual(gate["data_gate_fail_case"]["data_gate_status"], "FAIL")
+        self.assertEqual(gate["data_gate_fail_case"]["render_gate_status"], "NOT_RUN")
+        self.assertFalse(failure["accepted_state_created"])
+
+    def test_data_pass_render_fail_separation(self):
+        gate = render_gate_separation_evidence(self.tmp)
+        self.assertEqual(gate["render_fail_case"]["data_gate_status"], "PASS")
+        self.assertEqual(gate["render_fail_case"]["render_gate_status"], "FAIL")
+        self.assertFalse(gate["render_fail_case"]["static_fallback_used"])
+
+    def test_recovery_resumes_baseline_state(self):
+        self.assert_failure_preserves_store("ATOMIC_COMMIT_FAIL")
+        recovery = transition_recovery_state(self.tmp, work_execution_id="w4-recovery-test")
+        self.assertEqual(recovery["previous_state_id"], self.baseline["current_state_id"])
+        self.assertEqual(recovery["previous_state_hash"], self.baseline["current_state_hash"])
+
+    def test_recovery_ledger_continuity_pass(self):
+        recovery = transition_recovery_state(self.tmp, work_execution_id="w4-recovery-ledger")
+        self.assertGreaterEqual(recovery["portfolio_ledger_version"], self.baseline["portfolio_ledger_version"])
+        self.assertGreaterEqual(recovery["transaction_ledger_version"], self.baseline["transaction_ledger_version"])
+
+    def test_failed_candidate_never_becomes_prior_state(self):
+        self.assert_failure_preserves_store("STATE_CANDIDATE_VALIDATION_FAIL")
+        recovery = transition_recovery_state(self.tmp, work_execution_id="w4-recovery-prior")
+        self.assertEqual(recovery["previous_state_id"], self.baseline["current_state_id"])
+
+    def test_failure_retry_idempotent(self):
+        first = run_failure_scenario(self.tmp, "PRODUCTION_DATA_VALIDATION_FAIL", failure_execution_id="w4-failure-retry")
+        replay = run_failure_scenario(self.tmp, "PRODUCTION_DATA_VALIDATION_FAIL", failure_execution_id="w4-failure-retry")
+        self.assertEqual(replay["idempotency_status"], "IDEMPOTENT_REPLAY")
+        self.assertEqual(replay["failure_execution_id"], first["failure_execution_id"])
+
+    def test_recovery_replay_idempotent(self):
+        first = transition_recovery_state(self.tmp, work_execution_id="w4-recovery-replay")
+        replay = transition_recovery_state(self.tmp, work_execution_id="w4-recovery-replay")
+        self.assertEqual(replay["idempotency_status"], "IDEMPOTENT_REPLAY")
+        self.assertEqual(replay["current_state_id"], first["current_state_id"])
+
+    def test_w4_full_acceptance_passes(self):
+        evidence = run_w4_failure_recovery_acceptance(self.tmp)
+        self.assertEqual(evidence["final_result"], "PASS")
+        self.assertEqual(evidence["data_gate_status"], "PASS")
+        self.assertEqual(evidence["render_gate_separation_status"], "PASS")
+        self.assertEqual(evidence["recovery"]["recovery_lineage_status"], "PASS")
 
 
 if __name__ == "__main__":
