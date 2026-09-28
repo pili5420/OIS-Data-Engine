@@ -3,98 +3,29 @@
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 87.84
+      "trailing_20d_support": 89.31
     },
     "momentum": {
-      "close_minus_20d_close": 17.540001,
-      "macd_histogram": 1.368343,
-      "rsi14": 68.443381
+      "close_minus_20d_close": 14.620003,
+      "macd_histogram": -0.264333,
+      "rsi14": 58.529653
     },
-    "resistance": 107.63,
-    "rows": 504,
+    "resistance": 108.75,
+    "rows": 514,
     "source": "yahoo_chart",
-    "source_date": "2026-09-11",
-    "support": 87.84,
+    "source_date": "2026-09-25",
+    "support": 89.31,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 94.086999,
+      "close_above_ma20": 100.789499,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"
   },
-  "data_as_of": "2026-09-11",
+  "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
+  "data_as_of": "2026-09-25",
   "datasets": {
     "brent_macd": [
-      {
-        "date": "2025-09-15",
-        "dea": -0.32432,
-        "dif": -0.29588,
-        "histogram": 0.028439,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-16",
-        "dea": -0.292011,
-        "dif": -0.162777,
-        "histogram": 0.129234,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-17",
-        "dea": -0.253233,
-        "dif": -0.09812,
-        "histogram": 0.155113,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-18",
-        "dea": -0.219992,
-        "dif": -0.087029,
-        "histogram": 0.132963,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-19",
-        "dea": -0.203588,
-        "dif": -0.137974,
-        "histogram": 0.065615,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-22",
-        "dea": -0.199889,
-        "dif": -0.185091,
-        "histogram": 0.014798,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-23",
-        "dea": -0.186979,
-        "dif": -0.135338,
-        "histogram": 0.051641,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-24",
-        "dea": -0.141743,
-        "dif": 0.039201,
-        "histogram": 0.180944,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-25",
-        "dea": -0.076539,
-        "dif": 0.184277,
-        "histogram": 0.260816,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-26",
-        "dea": 0.009265,
-        "dif": 0.352478,
-        "histogram": 0.343214,
-        "zero": 0
-      },
       {
         "date": "2025-09-29",
         "dea": 0.068999,
@@ -1774,79 +1705,79 @@
         "dif": 3.991205,
         "histogram": 1.368343,
         "zero": 0
+      },
+      {
+        "date": "2026-09-14",
+        "dea": 2.961942,
+        "dif": 4.318263,
+        "histogram": 1.356321,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-15",
+        "dea": 3.323593,
+        "dif": 4.770194,
+        "histogram": 1.446602,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-16",
+        "dea": 3.626269,
+        "dif": 4.836976,
+        "histogram": 1.210707,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-17",
+        "dea": 3.851737,
+        "dif": 4.753606,
+        "histogram": 0.901869,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-18",
+        "dea": 3.993056,
+        "dif": 4.558332,
+        "histogram": 0.565276,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-21",
+        "dea": 4.008804,
+        "dif": 4.071796,
+        "histogram": 0.062993,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-22",
+        "dea": 3.918494,
+        "dif": 3.557254,
+        "histogram": -0.36124,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-23",
+        "dea": 3.818618,
+        "dif": 3.419112,
+        "histogram": -0.399506,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-24",
+        "dea": 3.765437,
+        "dif": 3.552714,
+        "histogram": -0.212723,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-25",
+        "dea": 3.699354,
+        "dif": 3.43502,
+        "histogram": -0.264333,
+        "zero": 0
       }
     ],
     "brent_price_structure": [
-      {
-        "date": "2025-09-15",
-        "ma120": 67.535833,
-        "ma20": 67.2685,
-        "ma60": 68.1925,
-        "price": 67.440002
-      },
-      {
-        "date": "2025-09-16",
-        "ma120": 67.4915,
-        "ma20": 67.362,
-        "ma60": 68.142333,
-        "price": 68.470001
-      },
-      {
-        "date": "2025-09-17",
-        "ma120": 67.440833,
-        "ma20": 67.47,
-        "ma60": 68.155833,
-        "price": 67.949997
-      },
-      {
-        "date": "2025-09-18",
-        "ma120": 67.38925,
-        "ma20": 67.5,
-        "ma60": 68.151833,
-        "price": 67.440002
-      },
-      {
-        "date": "2025-09-19",
-        "ma120": 67.322083,
-        "ma20": 67.4505,
-        "ma60": 68.134333,
-        "price": 66.68
-      },
-      {
-        "date": "2025-09-22",
-        "ma120": 67.256083,
-        "ma20": 67.3925,
-        "ma60": 68.114333,
-        "price": 66.57
-      },
-      {
-        "date": "2025-09-23",
-        "ma120": 67.195083,
-        "ma20": 67.334,
-        "ma60": 68.114666,
-        "price": 67.629997
-      },
-      {
-        "date": "2025-09-24",
-        "ma120": 67.188167,
-        "ma20": 67.4385,
-        "ma60": 68.151333,
-        "price": 69.309998
-      },
-      {
-        "date": "2025-09-25",
-        "ma120": 67.220167,
-        "ma20": 67.507,
-        "ma60": 68.1565,
-        "price": 69.419998
-      },
-      {
-        "date": "2025-09-26",
-        "ma120": 67.2695,
-        "ma20": 67.582499,
-        "ma60": 68.178666,
-        "price": 70.129997
-      },
       {
         "date": "2025-09-29",
         "ma120": 67.312417,
@@ -3526,79 +3457,79 @@
         "ma20": 94.086999,
         "ma60": 86.395833,
         "price": 104.610001
+      },
+      {
+        "date": "2026-09-14",
+        "ma120": 93.974917,
+        "ma20": 94.944999,
+        "ma60": 86.831333,
+        "price": 105.68
+      },
+      {
+        "date": "2026-09-15",
+        "ma120": 94.010417,
+        "ma20": 95.838999,
+        "ma60": 87.313,
+        "price": 108.75
+      },
+      {
+        "date": "2026-09-16",
+        "ma120": 94.0405,
+        "ma20": 96.579499,
+        "ma60": 87.7785,
+        "price": 105.830002
+      },
+      {
+        "date": "2026-09-17",
+        "ma120": 94.013917,
+        "ma20": 97.239499,
+        "ma60": 88.240833,
+        "price": 104.82
+      },
+      {
+        "date": "2026-09-18",
+        "ma120": 93.941417,
+        "ma20": 97.743999,
+        "ma60": 88.743,
+        "price": 103.870003
+      },
+      {
+        "date": "2026-09-21",
+        "ma120": 93.83775,
+        "ma20": 98.041499,
+        "ma60": 89.161,
+        "price": 100.339996
+      },
+      {
+        "date": "2026-09-22",
+        "ma120": 93.678583,
+        "ma20": 98.395499,
+        "ma60": 89.615333,
+        "price": 99.25
+      },
+      {
+        "date": "2026-09-23",
+        "ma120": 93.694583,
+        "ma20": 99.120499,
+        "ma60": 90.114167,
+        "price": 103.080002
+      },
+      {
+        "date": "2026-09-24",
+        "ma120": 93.674333,
+        "ma20": 100.058499,
+        "ma60": 90.6755,
+        "price": 106.599998
+      },
+      {
+        "date": "2026-09-25",
+        "ma120": 93.628917,
+        "ma20": 100.789499,
+        "ma60": 91.221333,
+        "price": 104.32
       }
     ],
     "brent_rsi": [
-      {
-        "date": "2025-09-15",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 50.217687,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-16",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 54.515681,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-17",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 52.071433,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-18",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 49.717075,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-19",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 46.353583,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-22",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 45.869882,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-23",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 51.158888,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-24",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 58.139985,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-25",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 58.557673,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-26",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 61.245624,
-        "upper70": 70
-      },
       {
         "date": "2025-09-29",
         "lower30": 30,
@@ -5278,79 +5209,79 @@
         "middle50": 50,
         "rsi14": 68.443381,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-14",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 69.545097,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-15",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 72.51051,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-16",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 65.934401,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-17",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 63.779759,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-18",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 61.736197,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-21",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 54.720185,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-22",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 52.727574,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-23",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 58.452599,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-24",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 62.899681,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-25",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 58.529653,
+        "upper70": 70
       }
     ],
     "wti_macd": [
-      {
-        "date": "2025-09-15",
-        "dea": -0.591496,
-        "dif": -0.563769,
-        "histogram": 0.027728,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-16",
-        "dea": -0.55643,
-        "dif": -0.416164,
-        "histogram": 0.140266,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-17",
-        "dea": -0.511798,
-        "dif": -0.333268,
-        "histogram": 0.178529,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-18",
-        "dea": -0.470001,
-        "dif": -0.302815,
-        "histogram": 0.167186,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-19",
-        "dea": -0.445301,
-        "dif": -0.346502,
-        "histogram": 0.0988,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-22",
-        "dea": -0.432235,
-        "dif": -0.379971,
-        "histogram": 0.052264,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-23",
-        "dea": -0.413876,
-        "dif": -0.340439,
-        "histogram": 0.073437,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-24",
-        "dea": -0.36701,
-        "dif": -0.179548,
-        "histogram": 0.187463,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-25",
-        "dea": -0.304057,
-        "dif": -0.052244,
-        "histogram": 0.251813,
-        "zero": 0
-      },
-      {
-        "date": "2025-09-26",
-        "dea": -0.221821,
-        "dif": 0.107122,
-        "histogram": 0.328943,
-        "zero": 0
-      },
       {
         "date": "2025-09-29",
         "dea": -0.167521,
@@ -7030,79 +6961,79 @@
         "dif": 4.192554,
         "histogram": 1.48462,
         "zero": 0
+      },
+      {
+        "date": "2026-09-14",
+        "dea": 3.079749,
+        "dif": 4.56701,
+        "histogram": 1.487261,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-15",
+        "dea": 3.496305,
+        "dif": 5.16253,
+        "histogram": 1.666225,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-16",
+        "dea": 3.856854,
+        "dif": 5.299048,
+        "histogram": 1.442194,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-17",
+        "dea": 4.146311,
+        "dif": 5.304137,
+        "histogram": 1.157827,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-18",
+        "dea": 4.340898,
+        "dif": 5.119246,
+        "histogram": 0.778348,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-21",
+        "dea": 4.383814,
+        "dif": 4.555478,
+        "histogram": 0.171665,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-22",
+        "dea": 4.300438,
+        "dif": 3.966937,
+        "histogram": -0.333501,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-23",
+        "dea": 4.093706,
+        "dif": 3.266776,
+        "histogram": -0.82693,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-24",
+        "dea": 3.850251,
+        "dif": 2.876431,
+        "histogram": -0.97382,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-25",
+        "dea": 3.552666,
+        "dif": 2.362326,
+        "histogram": -1.19034,
+        "zero": 0
       }
     ],
     "wti_price_structure": [
-      {
-        "date": "2025-09-15",
-        "ma120": 64.5905,
-        "ma20": 63.44,
-        "ma60": 65.2625,
-        "price": 63.299999
-      },
-      {
-        "date": "2025-09-16",
-        "ma120": 64.54775,
-        "ma20": 63.495,
-        "ma60": 65.196,
-        "price": 64.519997
-      },
-      {
-        "date": "2025-09-17",
-        "ma120": 64.498833,
-        "ma20": 63.58,
-        "ma60": 65.190666,
-        "price": 64.050003
-      },
-      {
-        "date": "2025-09-18",
-        "ma120": 64.450583,
-        "ma20": 63.598,
-        "ma60": 65.168166,
-        "price": 63.57
-      },
-      {
-        "date": "2025-09-19",
-        "ma120": 64.37725,
-        "ma20": 63.556,
-        "ma60": 65.1255,
-        "price": 62.68
-      },
-      {
-        "date": "2025-09-22",
-        "ma120": 64.305917,
-        "ma20": 63.505,
-        "ma60": 65.0775,
-        "price": 62.639999
-      },
-      {
-        "date": "2025-09-23",
-        "ma120": 64.23675,
-        "ma20": 63.4355,
-        "ma60": 65.049166,
-        "price": 63.41
-      },
-      {
-        "date": "2025-09-24",
-        "ma120": 64.220417,
-        "ma20": 63.522499,
-        "ma60": 65.0415,
-        "price": 64.989998
-      },
-      {
-        "date": "2025-09-25",
-        "ma120": 64.245333,
-        "ma20": 63.564,
-        "ma60": 65.000333,
-        "price": 64.980003
-      },
-      {
-        "date": "2025-09-26",
-        "ma120": 64.287167,
-        "ma20": 63.62,
-        "ma60": 64.979,
-        "price": 65.720001
-      },
       {
         "date": "2025-09-29",
         "ma120": 64.319417,
@@ -8782,79 +8713,79 @@
         "ma20": 88.523502,
         "ma60": 81.3855,
         "price": 100.050003
+      },
+      {
+        "date": "2026-09-14",
+        "ma120": 88.8295,
+        "ma20": 89.473001,
+        "ma60": 81.7955,
+        "price": 101.389999
+      },
+      {
+        "date": "2026-09-15",
+        "ma120": 88.941833,
+        "ma20": 90.539502,
+        "ma60": 82.282667,
+        "price": 105.830002
+      },
+      {
+        "date": "2026-09-16",
+        "ma120": 89.04275,
+        "ma20": 91.414001,
+        "ma60": 82.742834,
+        "price": 102.43
+      },
+      {
+        "date": "2026-09-17",
+        "ma120": 89.104667,
+        "ma20": 92.218002,
+        "ma60": 83.221167,
+        "price": 101.910004
+      },
+      {
+        "date": "2026-09-18",
+        "ma120": 89.110167,
+        "ma20": 92.841502,
+        "ma60": 83.720501,
+        "price": 100.300003
+      },
+      {
+        "date": "2026-09-21",
+        "ma120": 89.051,
+        "ma20": 93.277502,
+        "ma60": 84.118167,
+        "price": 95.779999
+      },
+      {
+        "date": "2026-09-22",
+        "ma120": 88.994417,
+        "ma20": 93.756501,
+        "ma60": 84.540834,
+        "price": 94.589996
+      },
+      {
+        "date": "2026-09-23",
+        "ma120": 88.928084,
+        "ma20": 94.246502,
+        "ma60": 84.897667,
+        "price": 92.160004
+      },
+      {
+        "date": "2026-09-24",
+        "ma120": 88.787,
+        "ma20": 94.865501,
+        "ma60": 85.316167,
+        "price": 94.610001
+      },
+      {
+        "date": "2026-09-25",
+        "ma120": 88.620334,
+        "ma20": 95.309502,
+        "ma60": 85.713334,
+        "price": 92.410004
       }
     ],
     "wti_rsi": [
-      {
-        "date": "2025-09-15",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 47.785548,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-16",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 52.920708,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-17",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 50.846088,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-18",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 48.744371,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-19",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 45.027917,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-22",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 44.862358,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-23",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 48.767366,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-24",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 55.700405,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-25",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 55.649104,
-        "upper70": 70
-      },
-      {
-        "date": "2025-09-26",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 58.683314,
-        "upper70": 70
-      },
       {
         "date": "2025-09-29",
         "lower30": 30,
@@ -10534,53 +10465,167 @@
         "middle50": 50,
         "rsi14": 71.532325,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-14",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 72.87858,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-15",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 76.794475,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-16",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 68.62353,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-17",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 67.441642,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-18",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 63.779024,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-21",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 54.783781,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-22",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 52.677324,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-23",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 48.570424,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-24",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 52.584248,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-25",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 48.894106,
+        "upper70": 70
       }
     ]
   },
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T15:03:27Z",
+  "generated_at": "2026-09-28T09:18:42Z",
   "latest_complete_source_date": {
-    "brent": "2026-09-11",
-    "wti": "2026-09-11"
+    "brent": "2026-09-25",
+    "wti": "2026-09-25"
+  },
+  "lineage": {
+    "approved_revision_count": 2,
+    "approved_revisions": [
+      {
+        "after_hash": "06e9f84342c7914f39a68057b2249dcbeb2bf69465ff532ffd81f9909cb428d2",
+        "approval_status": "APPROVED",
+        "before_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
+        "date": "2026-09-11",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "wti",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 WTI futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+      },
+      {
+        "after_hash": "f8d9f1adf4c3b0c4cd0b9d561ca83d083266b31fffed7cd31106d9fc765a374d",
+        "approval_status": "APPROVED",
+        "before_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+        "date": "2026-09-11",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 Brent futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+      }
+    ],
+    "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
+    "historical_revision_recovery": "PASS",
+    "migration_from_legacy": true,
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+    "run_id": "legacy-migration-36402425921",
+    "source_as_of": "2026-09-25"
   },
   "missing_fields": [],
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "published": true,
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 250,
+  "run_id": "legacy-migration-36402425921",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-CHART-1.0",
-  "snapshot_id": "e75c3005af076ef34e8186a7789effe5097a54d4f55df9ee889861af74110323",
+  "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
   "source": {
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
+  "source_as_of": "2026-09-25",
   "source_timestamp": {
-    "brent": "2026-09-11T04:00:00Z",
-    "wti": "2026-09-11T04:00:00Z"
+    "brent": "2026-09-25T04:00:00Z",
+    "wti": "2026-09-25T04:00:00Z"
   },
   "validation_status": "PASS",
   "wti": {
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 82.23
+      "trailing_20d_support": 83.4
     },
     "momentum": {
-      "close_minus_20d_close": 18.800003,
-      "macd_histogram": 1.48462,
-      "rsi14": 71.532325
+      "close_minus_20d_close": 8.880005,
+      "macd_histogram": -1.19034,
+      "rsi14": 48.894106
     },
-    "resistance": 102.48,
-    "rows": 504,
+    "resistance": 105.83,
+    "rows": 514,
     "source": "yahoo_chart",
-    "source_date": "2026-09-11",
-    "support": 82.23,
+    "source_date": "2026-09-25",
+    "support": 83.4,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 88.523502,
+      "close_above_ma20": 95.309502,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"

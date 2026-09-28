@@ -1,28 +1,73 @@
 {
-  "Brent_source_date": "2026-09-11",
-  "WTI_source_date": "2026-09-11",
-  "data_as_of": "2026-09-11",
+  "Brent_source_date": "2026-09-25",
+  "WTI_source_date": "2026-09-25",
+  "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
+  "data_as_of": "2026-09-25",
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-14T15:03:27Z",
-  "last_successful_update": "2026-09-14T15:03:27Z",
+  "generated_at": "2026-09-28T09:18:42Z",
+  "last_successful_update": "2026-09-28T09:18:42Z",
+  "lineage": {
+    "approved_revision_count": 2,
+    "approved_revisions": [
+      {
+        "after_hash": "06e9f84342c7914f39a68057b2249dcbeb2bf69465ff532ffd81f9909cb428d2",
+        "approval_status": "APPROVED",
+        "before_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
+        "date": "2026-09-11",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "wti",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 WTI futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+      },
+      {
+        "after_hash": "f8d9f1adf4c3b0c4cd0b9d561ca83d083266b31fffed7cd31106d9fc765a374d",
+        "approval_status": "APPROVED",
+        "before_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+        "date": "2026-09-11",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 Brent futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+      }
+    ],
+    "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
+    "historical_revision_recovery": "PASS",
+    "migration_from_legacy": true,
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+    "run_id": "legacy-migration-36402425921",
+    "source_as_of": "2026-09-25"
+  },
   "missing_fields": [],
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "published": true,
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 2,
+  "run_id": "legacy-migration-36402425921",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-STATUS-1.0",
   "service": "OIS Technical Data Engine",
-  "snapshot_id": "e75c3005af076ef34e8186a7789effe5097a54d4f55df9ee889861af74110323",
+  "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
   "source": {
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
+  "source_as_of": "2026-09-25",
   "source_timestamp": {
-    "brent": "2026-09-11T04:00:00Z",
-    "wti": "2026-09-11T04:00:00Z"
+    "brent": "2026-09-25T04:00:00Z",
+    "wti": "2026-09-25T04:00:00Z"
   },
   "status": "PASS",
   "validation": "PASS",
