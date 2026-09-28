@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,7 @@ from src.payload.chart_payload import build_chart_payload
 from src.rollover.normalization import check_rollover
 from src.sources.adapters import PriceRow
 from src.runtime.source import IntegrityError, TransientError, fetch, stamp
+from src.runtime.revisions import load_revision_evidence, match_approved_revision, revision_summary
 from src.runtime.validation import (CHECKS, FIELDS, PUBLIC_FILES, read_json, require,
                                     validate_documents, validate_history, validate_indicators)
 
@@ -68,7 +70,7 @@ def load_previous(root: Path) -> tuple[dict, dict | None, bool]:
     return state, rolling, migrated
 
 
-def merge_history(previous: list[dict], incoming: list[dict], migrated: bool) -> tuple[list[dict], int]:
+def merge_history(previous: list[dict], incoming: list[dict], migrated: bool, *, instrument: str | None = None, revision_evidence: dict | None = None) -> tuple[list[dict], int, list[dict]]:
     old = {row["date"]: row for row in previous}
     require(len(old) == len(previous), "PREVIOUS_DUPLICATE_DATE")
     require(incoming[-1]["date"] >= previous[-1]["date"], "SOURCE_DATE_REGRESSION")
@@ -78,14 +80,18 @@ def merge_history(previous: list[dict], incoming: list[dict], migrated: bool) ->
     require(all(day in incoming_dates for day in old if incoming[0]["date"] <= day <= incoming[-1]["date"]),
             "SOURCE_HISTORICAL_SESSION_DISAPPEARED")
     revisions = 0
+    accepted_revisions: list[dict] = []
     for row in incoming:
         day = row["date"]
         if day in old:
             changed = any(row[field] != old[day][field] for field in FIELDS)
             if changed:
-                require(not migrated, f"HISTORICAL_SOURCE_REVISION:{day}")
+                accepted = match_approved_revision(evidence=revision_evidence or {}, instrument=instrument or "", old_row=old[day], incoming_row=row) if migrated else None
+                require((not migrated) or accepted is not None, f"HISTORICAL_SOURCE_REVISION:{day}")
                 revisions += 1
-            if not migrated:
+                if accepted is not None:
+                    accepted_revisions.append(accepted)
+            if (not migrated) or changed:
                 old[day] = row
         elif day > previous[-1]["date"]:
             old[day] = row
@@ -94,11 +100,11 @@ def merge_history(previous: list[dict], incoming: list[dict], migrated: bool) ->
             old[day] = row
             revisions += 1
         # Do not prepend older observations: EMA seed must never move.
-    return [old[day] for day in sorted(old)], revisions
+    return [old[day] for day in sorted(old)], revisions, accepted_revisions
 
 
 def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
-                   now: datetime, flags: list[str], revisions: dict) -> tuple[dict, dict]:
+                   now: datetime, flags: list[str], revisions: dict, accepted_revisions: list[dict] | None = None) -> tuple[dict, dict]:
     commodities = history["commodities"]
     clean, indicators = {}, {}
     for key, rows in commodities.items():
@@ -107,14 +113,23 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
         validate_indicators(clean[key], indicators[key])
     require(commodities["wti"][-1]["date"] == commodities["brent"][-1]["date"], "LATEST_DATES_UNSYNCHRONIZED")
     now_string = stamp(now)
+    snapshot_id = digest(commodities)
+    run_id = os.environ.get("GITHUB_RUN_ID") or f"local-{snapshot_id[:12]}"
+    commit_sha = os.environ.get("GITHUB_SHA") or "local"
+    source_as_of = commodities["wti"][-1]["date"]
+    revision_info = revision_summary(accepted_revisions or [])
     common = {
         "runtime_contract_version": "1.0", "generated_at": now_string,
-        "data_as_of": commodities["wti"][-1]["date"],
+        "data_as_of": source_as_of, "source_as_of": source_as_of,
         "source": {key: rows[-1]["source"] for key, rows in commodities.items()},
         "source_timestamp": {key: rows[-1]["source_timestamp"] for key, rows in commodities.items()},
-        "snapshot_id": digest(commodities), "validation_status": "PASS",
+        "snapshot_id": snapshot_id, "production_snapshot_id": snapshot_id,
+        "run_id": run_id, "commit_sha": commit_sha, "published": True,
+        "validation_status": "PASS",
         "quality_flags": sorted(set(flags)), "missing_fields": [],
         "duplicate_status": "PASS", "freshness_status": "PASS",
+        "lineage": {"production_snapshot_id": snapshot_id, "run_id": run_id, "commit_sha": commit_sha,
+                    "source_as_of": source_as_of, **revision_info},
     }
     history.update({**common, "schema_version": "OIS-HISTORY-1.0", "record_count": sum(map(len, commodities.values()))})
     report = {**common, "schema_version": "OIS-VALIDATION-1.0", "record_count": 2,
@@ -136,17 +151,20 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
         require(dates[-1] >= old_dates[-1], "ROLLING_DATE_REGRESSION")
         appended = len([day for day in dates if day > old_dates[-1]])
         if migrated:
+            revision_dates = {item["date"] for item in (accepted_revisions or [])}
+            earliest_revision = min(revision_dates) if revision_dates else None
             for key, rows in datasets.items():
                 old = {row["date"]: row for row in previous_rolling["datasets"][key]}
                 for row in rows:
-                    require(row["date"] not in old or row == old[row["date"]], "ROLLING_HISTORICAL_INDICATOR_DRIFT")
+                    require(row["date"] not in old or row == old[row["date"]] or (earliest_revision is not None and row["date"] >= earliest_revision), "ROLLING_HISTORICAL_INDICATOR_DRIFT")
                 retained = [row for row in previous_rolling["datasets"][key] if row["date"] >= dates[0]]
                 added = [row for row in rows if row["date"] > old_dates[-1]]
-                require(retained + added == rows, "PERSISTENT_ROLLING_CONTINUITY")
+                if earliest_revision is None:
+                    require(retained + added == rows, "PERSISTENT_ROLLING_CONTINUITY")
     rolling = {**common, "schema_version": "OIS-ROLLING-180-1.0", "record_count": 180,
                "window_size": 180, "first_source_date": dates[0], "last_source_date": dates[-1],
-               "update_mode": ("INCREMENTAL_APPEND_DROP" if appended else previous_rolling["update_mode"]) if migrated else "FULL_RECONCILIATION",
-               "runtime_update_result": "APPENDED" if appended else "NO_NEW_TRADING_DAY",
+               "update_mode": "CONTROLLED_HISTORICAL_REBUILD" if (accepted_revisions or []) else (("INCREMENTAL_APPEND_DROP" if appended else previous_rolling["update_mode"]) if migrated else "FULL_RECONCILIATION"),
+               "runtime_update_result": "CONTROLLED_HISTORICAL_REBUILD" if (accepted_revisions or []) else ("APPENDED" if appended else "NO_NEW_TRADING_DAY"),
                "last_full_reconciliation_at": previous_rolling["last_full_reconciliation_at"] if migrated else now_string,
                "source_payload_generated_at": now_string, "latest_complete_source_date": payload["latest_complete_source_date"],
                "appended_trading_days": appended, "dropped_trading_days": appended,
@@ -164,7 +182,8 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
     state, rolling, migrated = load_previous(root)
     if migrated:
         validate_bundle(root, now, check_freshness=False)
-    commodities, flags, revisions = {}, [], {}
+    revision_evidence = load_revision_evidence(root)
+    commodities, flags, revisions, accepted_revisions = {}, [], {}, []
     for key, ticker in (("wti", "CL=F"), ("brent", "BZ=F")):
         previous = state["commodities"][key]
         # Legacy baselines are revalidated before merging any incoming observations.
@@ -175,13 +194,14 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
         else:
             rows, source_flags = fetcher(ticker, now)
         validate_history(rows, now)
-        commodities[key], revisions[key] = merge_history(previous, rows, migrated)
+        commodities[key], revisions[key], accepted = merge_history(previous, rows, migrated, instrument=key, revision_evidence=revision_evidence)
+        accepted_revisions.extend(accepted)
         validate_history(commodities[key], now)
         flags.extend(source_flags)
     if not migrated:
         flags.append("LEGACY_BOOTSTRAP_RECONCILIATION")
     history = {"commodities": commodities}
-    documents, indicators = make_documents(history, rolling, migrated, now, flags, revisions)
+    documents, indicators = make_documents(history, rolling, migrated, now, flags, revisions, accepted_revisions)
     validate_documents(documents, history, now)
     # Nothing has been written into production; all candidate bytes are private.
     for filename, document in documents.items():
@@ -201,7 +221,7 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
                           for path in sorted((candidate / "data").rglob("*")) if path.is_file()}}
     write_json(candidate / "manifest.json", manifest)
     return {"validation_status": "PASS", "data_as_of": history["data_as_of"], "rolling_count": 180,
-            "candidate": str(candidate), "bootstrap_revised_rows": revisions, "publishable": fixture is None}
+            "candidate": str(candidate), "bootstrap_revised_rows": revisions, "accepted_historical_revisions": accepted_revisions, "publishable": fixture is None}
 
 
 def validate_bundle(root: Path, now: datetime, *, check_freshness: bool = True) -> None:
@@ -210,7 +230,7 @@ def validate_bundle(root: Path, now: datetime, *, check_freshness: bool = True) 
     documents = {filename: read_json(root / "data/production" / filename) for filename in PUBLIC_FILES}
     validation_time = now if check_freshness else datetime.fromisoformat(history["generated_at"].replace("Z", "+00:00"))
     validate_documents(documents, history, validation_time)
-    expected, _ = make_documents(history.copy(), None, False, validation_time, history["quality_flags"], {})
+    expected, _ = make_documents(history.copy(), None, False, validation_time, history["quality_flags"], {}, [])
     for field in ("datasets", "wti", "brent"):
         require(documents["ois_chart_payload.json"][field] == expected["ois_chart_payload.json"][field], "PAYLOAD_CALCULATION_MISMATCH")
     require(documents["ois_status.json"]["snapshot_id"] == history["snapshot_id"], "SNAPSHOT_HASH_MISMATCH")

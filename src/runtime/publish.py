@@ -4,7 +4,7 @@ import argparse
 import hashlib
 import os
 import subprocess
-import tempfile
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,8 +30,12 @@ def publish(root: Path, candidate: Path, branch: str, *, dry_run: bool = False) 
     base = manifest["base_commit"]
     # Build a whole Git tree using a separate index. The checkout and production
     # files are never copied/replaced, even when push or the process fails.
-    with tempfile.TemporaryDirectory(prefix="ois-index-") as temporary:
-        env = {**os.environ, "GIT_INDEX_FILE": str(Path(temporary) / "index")}
+    index_parent = root / "data" / "staging" / ".ois-index-tmp"
+    index_parent.mkdir(parents=True, exist_ok=True)
+    temporary = index_parent / f"ois-index-{time.time_ns()}"
+    temporary.mkdir()
+    try:
+        env = {**os.environ, "GIT_INDEX_FILE": str(temporary / "index")}
         def command(*args: str, input: str | None = None) -> str:
             return subprocess.check_output(["git", "-C", str(root), *args], input=input, env=env, text=True).strip()
         command("read-tree", base)
@@ -42,6 +46,8 @@ def publish(root: Path, candidate: Path, branch: str, *, dry_run: bool = False) 
         if dry_run:
             return tree
         commit = command("commit-tree", tree, "-p", base, input=f"Publish validated OIS snapshot {manifest['snapshot_id'][:12]}\n")
+    finally:
+        shutil.rmtree(temporary, ignore_errors=True)
     # A single non-forced ref update exposes all files atomically. A concurrent
     # writer makes this commit non-fast-forward; never rebase stale candidates.
     for attempt in range(3):
