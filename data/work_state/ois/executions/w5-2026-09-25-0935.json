@@ -1,0 +1,18 @@
+{
+  "cadence": "09:35",
+  "cadence_mode": "OIS_0935_OPENING",
+  "created_at": "2026-09-28T22:41:25Z",
+  "current_state_hash": "a8af1f2131cddf08807bc4dafae8f473f0674b7fd41c8363335899915a8a6a0f",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-a8af1f2131cddf08807bc4da",
+  "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
+  "execution_type": "THREE_DAY_E2E_SOAK_ACCEPTANCE",
+  "idempotency_key": "WFA001-W5:2026-09-25:OIS_0935_OPENING:4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "previous_state_hash": "24ceeb17791e47c60387bab482d247a5b21e2ae4d160f4169f336387256c8c98",
+  "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-24ceeb17791e47c60387bab4",
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "report_qa_status": "PASS",
+  "state_commit_status": "PASS",
+  "system": "OIS V4.4",
+  "trading_date": "2026-09-25",
+  "work_execution_id": "w5-2026-09-25-0935"
+}

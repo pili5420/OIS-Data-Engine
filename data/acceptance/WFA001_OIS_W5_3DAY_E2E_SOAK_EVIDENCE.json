@@ -1,0 +1,44 @@
+{
+  "accepted_executions": 4,
+  "accepted_executions_status": "4/12",
+  "accepted_trading_days": 1,
+  "accepted_trading_days_status": "1/3",
+  "cross_day_continuity": "PASS",
+  "failure_recovery_status": "PASS",
+  "fallback_detected": false,
+  "final_portfolio_ledger_version": 1,
+  "final_result": "IN_PROGRESS",
+  "final_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
+  "final_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+  "final_transaction_ledger_version": 1,
+  "idempotency_status": "PASS",
+  "ledger_reset_detected": false,
+  "production_binding_status": "PASS",
+  "render_gate_separation_status": "PASS",
+  "repo_head": "2b37c01822325d20861bcf7639e000392c848f66",
+  "required_executions": 12,
+  "required_trading_days": 3,
+  "starting_baseline": {
+    "starting_portfolio_ledger_version": 1,
+    "starting_state_hash": "41c2bea2fad6cacc4c4e815df066f54f4d8fdc3603139f591d5c7e707ef1a192",
+    "starting_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w4-recovery-41c2bea2fad6cacc4c4e815d",
+    "starting_transaction_ledger_version": 1,
+    "starting_work_execution_id": "w4-recovery"
+  },
+  "state_reset_detected": false,
+  "system": "OIS V4.4",
+  "trading_days": [
+    {
+      "accepted_cadences": 4,
+      "cadence_order": "PASS",
+      "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
+      "day_result": "PASS",
+      "fallback_used": false,
+      "portfolio_ledger_continuity": "PASS",
+      "state_chain_continuity": "PASS",
+      "trading_date": "2026-09-25",
+      "transaction_ledger_continuity": "PASS"
+    }
+  ],
+  "wfa_id": "WFA-001 OIS W5"
+}

@@ -1,0 +1,18 @@
+{
+  "cadence": "07:35",
+  "cadence_mode": "OIS_0735_PREMARKET",
+  "created_at": "2026-09-28T22:41:25Z",
+  "current_state_hash": "24ceeb17791e47c60387bab482d247a5b21e2ae4d160f4169f336387256c8c98",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-24ceeb17791e47c60387bab4",
+  "daily_chain_id": "ois-work-daily-chain-65ba3e51403e6316548cfe1b",
+  "execution_type": "THREE_DAY_E2E_SOAK_ACCEPTANCE",
+  "idempotency_key": "WFA001-W5:2026-09-25:OIS_0735_PREMARKET:4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "previous_state_hash": "41c2bea2fad6cacc4c4e815df066f54f4d8fdc3603139f591d5c7e707ef1a192",
+  "previous_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w4-recovery-41c2bea2fad6cacc4c4e815d",
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "report_qa_status": "PASS",
+  "state_commit_status": "PASS",
+  "system": "OIS V4.4",
+  "trading_date": "2026-09-25",
+  "work_execution_id": "w5-2026-09-25-0735"
+}

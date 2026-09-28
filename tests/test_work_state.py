@@ -4,8 +4,10 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import os
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 from src.runtime.source import IntegrityError
@@ -17,25 +19,30 @@ from src.work_state import (EXPECTED_BOOTSTRAP_SNAPSHOT_ID, EXPECTED_WFA_INFRA_E
                             bootstrap_initial_state, calculate_state_hash, load_current_state,
                             render_gate_separation_evidence, run_failure_scenario,
                             run_four_cadence_acceptance, run_w4_failure_recovery_acceptance,
-                            store_bytes_hashes, transition_recovery_state, transition_work_cadence,
-                            transition_work_state, validate_state_document, validate_state_file,
+                            run_w5_3day_e2e_soak_acceptance, store_bytes_hashes,
+                            transition_recovery_state, transition_work_cadence,
+                            transition_work_state, validate_market_trading_date,
+                            validate_state_document, validate_state_file,
                             write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION,
                             validate_authoritative_production_snapshot, load_work_ledgers,
                             build_incremental_state, atomic_commit_incremental_state,
-                            EXECUTION_TYPE_RECOVERY)
+                            EXECUTION_TYPE_RECOVERY, EXECUTION_TYPE_SOAK, WORK_CADENCE_ORDER)
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_W2_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199"
 EXPECTED_W2_STATE_HASH = "5b8f32d66add733bc3131199b41a7aa1f4c35bf57d266e4970d2e867cb4f9962"
 EXPECTED_W3_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-ec3109ab-cda-0b33394847edbab10cb9d707"
 EXPECTED_W3_STATE_HASH = "0b33394847edbab10cb9d7072789072e5550ca8aad53f3d8776a58acf7ad5d5f"
+EXPECTED_W4_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w4-recovery-41c2bea2fad6cacc4c4e815d"
+EXPECTED_W4_STATE_HASH = "41c2bea2fad6cacc4c4e815df066f54f4d8fdc3603139f591d5c7e707ef1a192"
 
 
 class WorkStateBootstrapTests(unittest.TestCase):
     def setUp(self):
-        base = ROOT.parent / ".work-state-tests"
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
         base.mkdir(parents=True, exist_ok=True)
-        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
         (self.tmp / "data/production").mkdir(parents=True)
         for name in PUBLIC_FILES:
             shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
@@ -144,9 +151,10 @@ class WorkStateBootstrapTests(unittest.TestCase):
 
 class WorkStateContinuityTests(unittest.TestCase):
     def setUp(self):
-        base = ROOT.parent / ".work-state-tests"
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
         base.mkdir(parents=True, exist_ok=True)
-        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
         (self.tmp / "data/production").mkdir(parents=True)
         for name in PUBLIC_FILES:
             shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
@@ -232,9 +240,10 @@ class WorkStateContinuityTests(unittest.TestCase):
 
 class WorkStateFourCadenceTests(unittest.TestCase):
     def setUp(self):
-        base = ROOT.parent / ".work-state-tests"
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
         base.mkdir(parents=True, exist_ok=True)
-        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
         (self.tmp / "data/production").mkdir(parents=True)
         for name in PUBLIC_FILES:
             shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
@@ -385,9 +394,10 @@ class WorkStateFourCadenceTests(unittest.TestCase):
 
 class WorkStateFailureRecoveryTests(unittest.TestCase):
     def setUp(self):
-        base = ROOT.parent / ".work-state-tests"
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
         base.mkdir(parents=True, exist_ok=True)
-        self.tmp = Path(tempfile.mkdtemp(prefix="case-", dir=base))
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
         (self.tmp / "data/production").mkdir(parents=True)
         for name in PUBLIC_FILES:
             shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
@@ -526,6 +536,117 @@ class WorkStateFailureRecoveryTests(unittest.TestCase):
         self.assertEqual(evidence["data_gate_status"], "PASS")
         self.assertEqual(evidence["render_gate_separation_status"], "PASS")
         self.assertEqual(evidence["recovery"]["recovery_lineage_status"], "PASS")
+
+
+class WorkStateThreeDaySoakTests(unittest.TestCase):
+    def setUp(self):
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
+        (self.tmp / "data/production").mkdir(parents=True)
+        (self.tmp / "data/acceptance").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        shutil.copy2(ROOT / "data/acceptance/WFA001_OIS_W4_FAILURE_RECOVERY_EVIDENCE.json", self.tmp / "data/acceptance/WFA001_OIS_W4_FAILURE_RECOVERY_EVIDENCE.json")
+        for path in (self.tmp / STATE_ROOT / "executions").glob("*.json"):
+            execution = read_json(path)
+            if execution.get("execution_type") == EXECUTION_TYPE_SOAK:
+                path.unlink()
+        for path in (self.tmp / STATE_ROOT / "history").glob("*.json"):
+            state = read_json(path)
+            if state.get("execution_type") == EXECUTION_TYPE_SOAK:
+                path.unlink()
+        shutil.copy2(self.tmp / STATE_ROOT / "history" / f"{EXPECTED_W4_STATE_ID}.json", self.tmp / STATE_ROOT / "current_state.json")
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["ledger_version"] = 1
+            ledger["ledger_bootstrap"] = False
+            ledger["ledger_reset_detected"] = False
+            ledger["current_state_id"] = EXPECTED_W4_STATE_ID
+            ledger["current_state_hash"] = EXPECTED_W4_STATE_HASH
+            ledger["last_work_execution_id"] = "w4-recovery"
+            if ledger_name == "transaction_ledger.json":
+                ledger["transactions"] = []
+            write_json(ledger_path, ledger)
+        self.baseline = load_current_state(self.tmp)
+        self.assertEqual(self.baseline["current_state_id"], EXPECTED_W4_STATE_ID)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def set_production_day(self, trading_date, suffix):
+        for name in PUBLIC_FILES:
+            doc = read_json(self.tmp / "data/production" / name)
+            snapshot = (doc["production_snapshot_id"][:-8] + suffix)[:64]
+            doc["production_snapshot_id"] = snapshot
+            doc["snapshot_id"] = snapshot
+            doc["run_id"] = f"w5-run-{trading_date.replace('-', '')}"
+            doc["commit_sha"] = (suffix * 10)[:40]
+            doc["source_as_of"] = trading_date
+            doc["source_timestamp"] = trading_date + "T23:59:59Z"
+            doc["lineage"]["production_snapshot_id"] = snapshot
+            doc["lineage"]["run_id"] = doc["run_id"]
+            doc["lineage"]["commit_sha"] = doc["commit_sha"]
+            doc["lineage"]["source_as_of"] = trading_date
+            write_json(self.tmp / "data/production" / name, doc)
+
+    def test_first_real_trading_day_records_in_progress(self):
+        evidence = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(evidence["final_result"], "IN_PROGRESS")
+        self.assertEqual(evidence["accepted_trading_days"], 1)
+        self.assertEqual(evidence["accepted_executions"], 4)
+        self.assertEqual(evidence["starting_baseline"]["starting_state_id"], EXPECTED_W4_STATE_ID)
+        self.assertTrue((self.tmp / "data/acceptance/w5/OIS_W5_2026-09-25.json").exists())
+
+    def test_three_real_trading_days_pass_with_cross_day_continuity(self):
+        self.set_production_day("2026-09-25", "11111111")
+        first = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(first["accepted_trading_days"], 1)
+        self.set_production_day("2026-09-28", "22222222")
+        second = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(second["accepted_trading_days"], 2)
+        self.set_production_day("2026-09-29", "33333333")
+        final = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(final["final_result"], "PASS")
+        self.assertEqual(final["accepted_trading_days"], 3)
+        self.assertEqual(final["accepted_executions"], 12)
+        self.assertEqual(final["cross_day_continuity"], "PASS")
+        self.assertFalse(final["state_reset_detected"])
+        self.assertFalse(final["ledger_reset_detected"])
+        self.assertFalse(final["fallback_detected"])
+        day1 = read_json(self.tmp / "data/acceptance/w5/OIS_W5_2026-09-25.json")
+        day2 = read_json(self.tmp / "data/acceptance/w5/OIS_W5_2026-09-28.json")
+        day3 = read_json(self.tmp / "data/acceptance/w5/OIS_W5_2026-09-29.json")
+        self.assertEqual(day2["cadences"][0]["previous_state_id"], day1["cadences"][-1]["current_state_id"])
+        self.assertEqual(day3["cadences"][0]["previous_state_hash"], day2["cadences"][-1]["current_state_hash"])
+
+    def test_non_trading_day_rejected(self):
+        with self.assertRaisesRegex(IntegrityError, "NON_TRADING_DATE"):
+            validate_market_trading_date("2025-12-25")
+        self.set_production_day("2025-12-25", "44444444")
+        with self.assertRaisesRegex(IntegrityError, "NON_TRADING_DATE"):
+            run_w5_3day_e2e_soak_acceptance(self.tmp)
+
+    def test_replay_current_w5_day_is_idempotent(self):
+        first = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        current = load_current_state(self.tmp)
+        replay = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(replay["accepted_executions"], first["accepted_executions"])
+        self.assertEqual(load_current_state(self.tmp)["current_state_id"], current["current_state_id"])
+
+    def test_w5_executions_use_separate_idempotency_namespace_from_w3(self):
+        evidence = run_w5_3day_e2e_soak_acceptance(self.tmp)
+        self.assertEqual(evidence["accepted_executions"], 4)
+        for cadence in WORK_CADENCE_ORDER:
+            path = self.tmp / STATE_ROOT / "executions" / f"w5-2026-09-25-{cadence.split('_')[1][:4]}.json"
+            self.assertTrue(path.exists())
+            execution = read_json(path)
+            self.assertTrue(execution["idempotency_key"].startswith("WFA001-W5:"))
+            self.assertEqual(execution["execution_type"], EXECUTION_TYPE_SOAK)
+
 
 
 if __name__ == "__main__":
