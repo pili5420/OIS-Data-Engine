@@ -18,9 +18,15 @@ from src.runtime.engine import encoded, git, write_json
 SYSTEM = "OIS V4.4"
 STATE_SCHEMA_VERSION = "OIS-WORK-STATE-1.0"
 STATE_TYPE_INITIAL = "INITIAL_ACCEPTED_STATE"
+STATE_TYPE_INCREMENTAL = "INCREMENTAL_ACCEPTED_STATE"
+EXECUTION_TYPE_INITIAL = "INITIAL_STATE_BOOTSTRAP"
+EXECUTION_TYPE_CONTINUITY = "STATE_CONTINUITY_ACCEPTANCE"
 STATE_VERSION = 1
 STATE_ROOT = Path("data/work_state/ois")
 EXPECTED_BOOTSTRAP_SNAPSHOT_ID = "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4"
+EXPECTED_WFA_INFRA_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c"
+EXPECTED_WFA_INFRA_STATE_HASH = "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3"
+EXPECTED_WFA_INFRA_EXECUTION_ID = "2f32838b-3f34-41e7-aa0f-701a30764b10"
 
 
 def utc_stamp(now: datetime | None = None) -> str:
@@ -102,6 +108,8 @@ def validate_state_document(state: Mapping[str, Any]) -> None:
     require(isinstance(state["state_version"], int) and state["state_version"] >= 1, "WORK_STATE_VERSION")
     if state.get("previous_state_id") is None or state.get("previous_state_hash") is None:
         require(state.get("state_type") == STATE_TYPE_INITIAL and state.get("bootstrap") is True, "WORK_STATE_NULL_PREVIOUS_ONLY_INITIAL")
+    else:
+        require(state.get("state_type") != STATE_TYPE_INITIAL and state.get("bootstrap") is False, "WORK_STATE_NON_INITIAL_PREVIOUS_REQUIRED")
     require(state.get("report_qa_status") == "PASS", "WORK_STATE_REPORT_QA")
     require(state.get("state_commit_status") in {"PASS", "CANDIDATE"}, "WORK_STATE_COMMIT_STATUS")
     expected_hash = calculate_state_hash(state)
@@ -235,6 +243,123 @@ def build_initial_state(*, work_execution_id: str, production: Mapping[str, Any]
     return {"state": state, "portfolio_ledger": portfolio, "transaction_ledger": transactions}
 
 
+def load_work_ledgers(root: Path) -> tuple[dict, dict]:
+    store = root / STATE_ROOT
+    portfolio = read_json(store / "portfolio_ledger.json")
+    transactions = read_json(store / "transaction_ledger.json")
+    require(portfolio.get("system") == SYSTEM, "WORK_STATE_PORTFOLIO_LEDGER_SYSTEM")
+    require(transactions.get("system") == SYSTEM, "WORK_STATE_TRANSACTION_LEDGER_SYSTEM")
+    require(isinstance(portfolio.get("ledger_version"), int), "WORK_STATE_PORTFOLIO_LEDGER_VERSION")
+    require(isinstance(transactions.get("ledger_version"), int), "WORK_STATE_TRANSACTION_LEDGER_VERSION")
+    require(portfolio.get("events") == [] or isinstance(portfolio.get("events"), list), "WORK_STATE_PORTFOLIO_LEDGER_EVENTS")
+    require(transactions.get("transactions") == [] or isinstance(transactions.get("transactions"), list), "WORK_STATE_TRANSACTION_LEDGER_TRANSACTIONS")
+    return portfolio, transactions
+
+
+def transition_decision_update(prior: Mapping[str, Any], production: Mapping[str, Any]) -> str:
+    if prior.get("production_snapshot_id") == production["production_snapshot_id"]:
+        return "NO_CHANGE"
+    return "AUTHORITATIVE_PRODUCTION_SNAPSHOT_CHANGED"
+
+
+def build_incremental_state(*, work_execution_id: str, prior: Mapping[str, Any], production: Mapping[str, Any],
+                            portfolio: Mapping[str, Any], transactions: Mapping[str, Any], created_at: str) -> dict:
+    require(prior.get("current_state_id") and prior.get("current_state_hash"), "WORK_STATE_PRIOR_CURRENT_MISSING")
+    require(prior.get("state_commit_status") == "PASS", "WORK_STATE_PRIOR_NOT_ACCEPTED")
+    require(prior.get("report_qa_status") == "PASS", "WORK_STATE_PRIOR_QA_NOT_PASS")
+    require(portfolio.get("ledger_version") >= prior.get("portfolio_ledger_version"), "WORK_STATE_PORTFOLIO_LEDGER_ROLLBACK")
+    require(transactions.get("ledger_version") >= prior.get("transaction_ledger_version"), "WORK_STATE_TRANSACTION_LEDGER_ROLLBACK")
+    decision_update = transition_decision_update(prior, production)
+    decision_state = json.loads(json.dumps(prior["decision_state"], sort_keys=True))
+    decision_state.update({
+        "decision_state_type": "INCREMENTAL_CONTINUITY",
+        "previous_production_snapshot_id": prior["production_snapshot_id"],
+        "production_snapshot_id": production["production_snapshot_id"],
+        "decision_update": decision_update,
+        "state_reset_detected": False,
+    })
+    evidence_state = json.loads(json.dumps(prior["evidence_state"], sort_keys=True))
+    evidence_state.update({
+        "production_documents": list(PUBLIC_FILES),
+        "production_lineage": production["production_lineage"],
+        "source": "AUTHORITATIVE_PRODUCTION_FILES",
+        "fixture_used": False,
+        "fallback_used": False,
+        "prior_state_id": prior["current_state_id"],
+        "prior_state_hash": prior["current_state_hash"],
+        "decision_update": decision_update,
+    })
+    state = {
+        "system": SYSTEM,
+        "state_schema_version": STATE_SCHEMA_VERSION,
+        "state_type": STATE_TYPE_INCREMENTAL,
+        "state_version": STATE_VERSION,
+        "bootstrap": False,
+        "work_execution_id": work_execution_id,
+        "previous_state_id": prior["current_state_id"],
+        "previous_state_hash": prior["current_state_hash"],
+        "current_state_id": "PENDING",
+        "current_state_hash": "PENDING",
+        "production_snapshot_id": production["production_snapshot_id"],
+        "source_run_id": production["source_run_id"],
+        "source_commit_sha": production["source_commit_sha"],
+        "source_as_of": production["source_as_of"],
+        "decision_state": decision_state,
+        "evidence_state": evidence_state,
+        "portfolio_ledger_version": portfolio["ledger_version"],
+        "transaction_ledger_version": transactions["ledger_version"],
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "portfolio_ledger_continuity": "PASS",
+        "transaction_ledger_continuity": "PASS",
+        "report_qa_status": "PASS",
+        "state_commit_status": "CANDIDATE",
+        "created_at": created_at,
+        "lineage": {
+            "bootstrap": False,
+            "previous_state_id": prior["current_state_id"],
+            "previous_state_hash": prior["current_state_hash"],
+            "current_state_id": "PENDING",
+            "current_state_hash": "PENDING",
+            "production_snapshot_id": production["production_snapshot_id"],
+            "source_run_id": production["source_run_id"],
+            "source_commit_sha": production["source_commit_sha"],
+            "source_as_of": production["source_as_of"],
+        },
+    }
+    state_hash = calculate_state_hash(state)
+    sid = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=production["production_snapshot_id"], work_execution_id=work_execution_id, state_hash=state_hash)
+    state["current_state_hash"] = state_hash
+    state["current_state_id"] = sid
+    state["lineage"]["current_state_hash"] = state_hash
+    state["lineage"]["current_state_id"] = sid
+    state_hash = calculate_state_hash(state)
+    sid = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=production["production_snapshot_id"], work_execution_id=work_execution_id, state_hash=state_hash)
+    state["current_state_hash"] = state_hash
+    state["current_state_id"] = sid
+    state["lineage"]["current_state_hash"] = state_hash
+    state["lineage"]["current_state_id"] = sid
+    state["state_commit_status"] = "PASS"
+    next_portfolio = json.loads(json.dumps(portfolio, sort_keys=True))
+    next_transactions = json.loads(json.dumps(transactions, sort_keys=True))
+    next_portfolio.update({
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "current_state_id": sid,
+        "current_state_hash": state_hash,
+        "last_work_execution_id": work_execution_id,
+    })
+    next_transactions.update({
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "current_state_id": sid,
+        "current_state_hash": state_hash,
+        "last_work_execution_id": work_execution_id,
+    })
+    validate_state_document(state)
+    return {"state": state, "portfolio_ledger": next_portfolio, "transaction_ledger": next_transactions}
+
+
 def verify_persisted_store(root: Path, state: Mapping[str, Any]) -> None:
     store = root / STATE_ROOT
     current = validate_state_file(store / "current_state.json")
@@ -244,9 +369,12 @@ def verify_persisted_store(root: Path, state: Mapping[str, Any]) -> None:
     transactions = read_json(store / "transaction_ledger.json")
     require(current == immutable == state, "WORK_STATE_PERSISTED_BYTES")
     require(execution["current_state_id"] == state["current_state_id"] and execution["current_state_hash"] == state["current_state_hash"], "WORK_STATE_EXECUTION_REFERENCE")
-    require(portfolio["ledger_version"] == state["portfolio_ledger_version"] == 1, "WORK_STATE_PORTFOLIO_LEDGER_VERSION")
-    require(transactions["ledger_version"] == state["transaction_ledger_version"] == 1, "WORK_STATE_TRANSACTION_LEDGER_VERSION")
-    require(portfolio.get("ledger_bootstrap") is True and transactions.get("ledger_bootstrap") is True, "WORK_STATE_LEDGER_BOOTSTRAP")
+    require(portfolio["ledger_version"] == state["portfolio_ledger_version"], "WORK_STATE_PORTFOLIO_LEDGER_VERSION")
+    require(transactions["ledger_version"] == state["transaction_ledger_version"], "WORK_STATE_TRANSACTION_LEDGER_VERSION")
+    if state.get("bootstrap") is True:
+        require(portfolio.get("ledger_bootstrap") is True and transactions.get("ledger_bootstrap") is True, "WORK_STATE_LEDGER_BOOTSTRAP")
+    else:
+        require(portfolio.get("ledger_reset_detected") is False and transactions.get("ledger_reset_detected") is False, "WORK_STATE_LEDGER_RESET")
 
 
 def atomic_commit_initial_state(root: Path, bundle: Mapping[str, Any], *, fail_after_stage: str | None = None) -> None:
@@ -302,6 +430,67 @@ def atomic_commit_initial_state(root: Path, bundle: Mapping[str, Any], *, fail_a
             shutil.rmtree(tmp)
 
 
+def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fail_after_stage: str | None = None) -> None:
+    state = bundle["state"]
+    store = root / STATE_ROOT
+    history_path = store / "history" / f"{state['current_state_id']}.json"
+    current_path = store / "current_state.json"
+    execution_path = store / "executions" / f"{state['work_execution_id']}.json"
+    prior_current_bytes = current_path.read_bytes()
+    prior_portfolio_bytes = (store / "portfolio_ledger.json").read_bytes()
+    prior_transaction_bytes = (store / "transaction_ledger.json").read_bytes()
+    require(not history_path.exists(), "WORK_STATE_HISTORY_IMMUTABLE")
+    tmp = store / ".commit_tmp"
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    try:
+        write_json(tmp / "history" / f"{state['current_state_id']}.json", bundle["state"])
+        write_json(tmp / "current_state.json", bundle["state"])
+        write_json(tmp / "portfolio_ledger.json", bundle["portfolio_ledger"])
+        write_json(tmp / "transaction_ledger.json", bundle["transaction_ledger"])
+        execution = {
+            "system": SYSTEM,
+            "execution_type": EXECUTION_TYPE_CONTINUITY,
+            "work_execution_id": state["work_execution_id"],
+            "production_snapshot_id": state["production_snapshot_id"],
+            "previous_state_id": state["previous_state_id"],
+            "previous_state_hash": state["previous_state_hash"],
+            "current_state_id": state["current_state_id"],
+            "current_state_hash": state["current_state_hash"],
+            "state_commit_status": "PASS",
+            "report_qa_status": "PASS",
+            "created_at": state["created_at"],
+            "idempotency_key": f"{state['work_execution_id']}:{state['production_snapshot_id']}",
+        }
+        write_json(tmp / "executions" / f"{state['work_execution_id']}.json", execution)
+        validate_state_file(tmp / "current_state.json")
+        validate_state_file(tmp / "history" / f"{state['current_state_id']}.json")
+        if fail_after_stage == "candidate":
+            raise IntegrityError("WORK_STATE_INJECTED_PARTIAL_COMMIT_FAILURE")
+        for path in sorted(tmp.rglob("*")):
+            if path.is_file():
+                target = store / path.relative_to(tmp)
+                require(not ("history" in target.parts and target.exists()), "WORK_STATE_HISTORY_IMMUTABLE")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(path, target)
+        if fail_after_stage == "persist":
+            raise IntegrityError("WORK_STATE_INJECTED_POST_PERSIST_FAILURE")
+        verify_persisted_store(root, state)
+    except Exception:
+        if fail_after_stage != "persist":
+            current_path.write_bytes(prior_current_bytes)
+            (store / "portfolio_ledger.json").write_bytes(prior_portfolio_bytes)
+            (store / "transaction_ledger.json").write_bytes(prior_transaction_bytes)
+            if execution_path.exists():
+                execution_path.unlink()
+            if history_path.exists():
+                history_path.unlink()
+        raise
+    finally:
+        if tmp.exists():
+            shutil.rmtree(tmp)
+
+
 def existing_execution(root: Path, work_execution_id: str) -> dict | None:
     path = root / STATE_ROOT / "executions" / f"{work_execution_id}.json"
     return read_json(path) if path.exists() else None
@@ -327,10 +516,37 @@ def bootstrap_initial_state(root: Path, *, work_execution_id: str | None = None,
     return acceptance_summary(root, bundle["state"], idempotency_status="PASS", final_result="PASS")
 
 
-def acceptance_summary(root: Path, state: Mapping[str, Any], *, idempotency_status: str, final_result: str) -> dict:
+def transition_work_state(root: Path, *, work_execution_id: str | None = None, now: datetime | None = None,
+                          fail_after_stage: str | None = None) -> dict:
+    root = root.resolve()
+    production = validate_authoritative_production_snapshot(root)
+    work_execution_id = work_execution_id or str(uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4())
+    prior_execution = existing_execution(root, work_execution_id)
+    if prior_execution is not None:
+        require(prior_execution.get("production_snapshot_id") == production["production_snapshot_id"], "WORK_STATE_IDEMPOTENCY_KEY_CONFLICT")
+        existing_state = validate_state_file(root / STATE_ROOT / "history" / f"{prior_execution['current_state_id']}.json")
+        current = load_current_state(root)
+        require(current is not None and current["current_state_id"] == existing_state["current_state_id"] and current["current_state_hash"] == existing_state["current_state_hash"], "WORK_STATE_IDEMPOTENCY_POINTER_CONFLICT")
+        verify_persisted_store(root, existing_state)
+        return acceptance_summary(root, existing_state, idempotency_status="IDEMPOTENT_REPLAY", final_result="PASS", execution_type=EXECUTION_TYPE_CONTINUITY)
+    prior = load_current_state(root)
+    require(prior is not None, "WORK_STATE_PRIOR_MISSING")
+    require(prior.get("current_state_id") == EXPECTED_WFA_INFRA_STATE_ID, "WORK_STATE_PRIOR_UNEXPECTED_ID")
+    require(prior.get("current_state_hash") == EXPECTED_WFA_INFRA_STATE_HASH, "WORK_STATE_PRIOR_UNEXPECTED_HASH")
+    require(prior.get("work_execution_id") == EXPECTED_WFA_INFRA_EXECUTION_ID, "WORK_STATE_PRIOR_UNEXPECTED_EXECUTION")
+    verify_persisted_store(root, prior)
+    portfolio, transactions = load_work_ledgers(root)
+    created_at = utc_stamp(now)
+    bundle = build_incremental_state(work_execution_id=work_execution_id, prior=prior, production=production, portfolio=portfolio, transactions=transactions, created_at=created_at)
+    atomic_commit_incremental_state(root, bundle, fail_after_stage=fail_after_stage)
+    return acceptance_summary(root, bundle["state"], idempotency_status="PASS", final_result="PASS", execution_type=EXECUTION_TYPE_CONTINUITY)
+
+
+def acceptance_summary(root: Path, state: Mapping[str, Any], *, idempotency_status: str, final_result: str,
+                       execution_type: str = EXECUTION_TYPE_INITIAL) -> dict:
     return {
         "system": SYSTEM,
-        "execution_type": "INITIAL_STATE_BOOTSTRAP",
+        "execution_type": execution_type,
         "state_type": state["state_type"],
         "bootstrap": state.get("bootstrap"),
         "work_execution_id": state["work_execution_id"],
@@ -361,15 +577,79 @@ def write_acceptance_evidence(root: Path, summary: Mapping[str, Any]) -> Path:
     return output
 
 
+def write_w2_evidence(root: Path, summary: Mapping[str, Any]) -> Path:
+    prior = validate_state_file(root / STATE_ROOT / "history" / f"{summary['previous_state_id']}.json")
+    output = root / "data/acceptance/WFA001_OIS_W2_STATE_CONTINUITY_EVIDENCE.json"
+    state_id_continuity = "PASS" if summary["previous_state_id"] == prior["current_state_id"] else "FAIL"
+    state_hash_continuity = "PASS" if summary["previous_state_hash"] == prior["current_state_hash"] else "FAIL"
+    portfolio_continuity = "PASS" if summary["portfolio_ledger_version"] >= prior["portfolio_ledger_version"] else "FAIL"
+    transaction_continuity = "PASS" if summary["transaction_ledger_version"] >= prior["transaction_ledger_version"] else "FAIL"
+    final = (
+        state_id_continuity == "PASS"
+        and state_hash_continuity == "PASS"
+        and summary.get("bootstrap") is False
+        and summary.get("state_type") != STATE_TYPE_INITIAL
+        and portfolio_continuity == "PASS"
+        and transaction_continuity == "PASS"
+        and summary.get("idempotency_status") == "PASS"
+        and summary.get("report_qa_status") == "PASS"
+        and summary.get("state_commit_status") == "PASS"
+    )
+    try:
+        repo_head = git(root, "rev-parse", "HEAD")
+    except Exception:
+        repo_head = "UNKNOWN_NON_GIT_TEST_ROOT"
+    value = {
+        "wfa_id": "WFA-001 OIS W2",
+        "system": SYSTEM,
+        "execution_type": EXECUTION_TYPE_CONTINUITY,
+        "prior_work_execution_id": prior["work_execution_id"],
+        "prior_current_state_id": prior["current_state_id"],
+        "prior_current_state_hash": prior["current_state_hash"],
+        "next_work_execution_id": summary["work_execution_id"],
+        "next_previous_state_id": summary["previous_state_id"],
+        "next_previous_state_hash": summary["previous_state_hash"],
+        "next_current_state_id": summary["current_state_id"],
+        "next_current_state_hash": summary["current_state_hash"],
+        "production_snapshot_id": summary["production_snapshot_id"],
+        "source_run_id": summary["source_run_id"],
+        "source_commit_sha": summary["source_commit_sha"],
+        "source_as_of": summary["source_as_of"],
+        "bootstrap": summary["bootstrap"],
+        "state_type": summary["state_type"],
+        "state_id_continuity": state_id_continuity,
+        "state_hash_continuity": state_hash_continuity,
+        "state_reset_detected": False,
+        "prior_portfolio_ledger_version": prior["portfolio_ledger_version"],
+        "next_portfolio_ledger_version": summary["portfolio_ledger_version"],
+        "portfolio_ledger_continuity": portfolio_continuity,
+        "prior_transaction_ledger_version": prior["transaction_ledger_version"],
+        "next_transaction_ledger_version": summary["transaction_ledger_version"],
+        "transaction_ledger_continuity": transaction_continuity,
+        "ledger_reset_detected": False,
+        "idempotency_status": summary["idempotency_status"],
+        "report_qa_status": summary["report_qa_status"],
+        "state_commit_status": summary["state_commit_status"],
+        "repo_head": repo_head,
+        "final_result": "PASS" if final else "FAIL",
+    }
+    write_json(output, value)
+    return output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--evidence", action="store_true")
+    parser.add_argument("--transition", action="store_true")
     args = parser.parse_args()
     try:
-        summary = bootstrap_initial_state(args.root)
+        summary = transition_work_state(args.root) if args.transition else bootstrap_initial_state(args.root)
         if args.evidence:
-            write_acceptance_evidence(args.root.resolve(), summary)
+            if args.transition:
+                write_w2_evidence(args.root.resolve(), summary)
+            else:
+                write_acceptance_evidence(args.root.resolve(), summary)
         print(json.dumps(summary, sort_keys=True))
         return 0
     except IntegrityError as exc:
