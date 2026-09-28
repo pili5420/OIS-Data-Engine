@@ -1,7 +1,7 @@
 {
   "created_at": "2026-09-28T11:45:07Z",
-  "current_state_hash": "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3",
-  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c",
+  "current_state_hash": "5b8f32d66add733bc3131199b41a7aa1f4c35bf57d266e4970d2e867cb4f9962",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199",
   "events": [],
   "initial_assets": {
     "cash": 0.0,
@@ -9,7 +9,9 @@
     "realized_pnl": 0.0,
     "unrealized_pnl": 0.0
   },
-  "ledger_bootstrap": true,
+  "last_work_execution_id": "1400758a-2703-4b70-9daa-d0ac5656d338",
+  "ledger_bootstrap": false,
+  "ledger_reset_detected": false,
   "ledger_schema_version": "OIS-WORK-PORTFOLIO-LEDGER-1.0",
   "ledger_type": "AI_PAPER_PORTFOLIO",
   "ledger_version": 1,
