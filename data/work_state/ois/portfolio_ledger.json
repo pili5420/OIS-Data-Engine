@@ -1,7 +1,8 @@
 {
   "created_at": "2026-09-28T11:45:07Z",
-  "current_state_hash": "5b8f32d66add733bc3131199b41a7aa1f4c35bf57d266e4970d2e867cb4f9962",
-  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199",
+  "current_state_hash": "0b33394847edbab10cb9d7072789072e5550ca8aad53f3d8776a58acf7ad5d5f",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-ec3109ab-cda-0b33394847edbab10cb9d707",
+  "daily_chain_id": "ois-work-daily-chain-ddc038f140141b7f98d93e70",
   "events": [],
   "initial_assets": {
     "cash": 0.0,
@@ -9,7 +10,7 @@
     "realized_pnl": 0.0,
     "unrealized_pnl": 0.0
   },
-  "last_work_execution_id": "1400758a-2703-4b70-9daa-d0ac5656d338",
+  "last_work_execution_id": "ec3109ab-cdaa-457e-88a5-039ce9fd2591",
   "ledger_bootstrap": false,
   "ledger_reset_detected": false,
   "ledger_schema_version": "OIS-WORK-PORTFOLIO-LEDGER-1.0",
@@ -22,5 +23,6 @@
     "source_run_id": "36410773469"
   },
   "system": "OIS V4.4",
+  "trading_date": "2026-09-25",
   "work_execution_id": "2f32838b-3f34-41e7-aa0f-701a30764b10"
 }

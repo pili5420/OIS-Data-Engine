@@ -21,12 +21,20 @@ STATE_TYPE_INITIAL = "INITIAL_ACCEPTED_STATE"
 STATE_TYPE_INCREMENTAL = "INCREMENTAL_ACCEPTED_STATE"
 EXECUTION_TYPE_INITIAL = "INITIAL_STATE_BOOTSTRAP"
 EXECUTION_TYPE_CONTINUITY = "STATE_CONTINUITY_ACCEPTANCE"
+EXECUTION_TYPE_FOUR_CADENCE = "FOUR_CADENCE_INCREMENTAL_ACCEPTANCE"
 STATE_VERSION = 1
 STATE_ROOT = Path("data/work_state/ois")
 EXPECTED_BOOTSTRAP_SNAPSHOT_ID = "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4"
 EXPECTED_WFA_INFRA_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c"
 EXPECTED_WFA_INFRA_STATE_HASH = "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3"
 EXPECTED_WFA_INFRA_EXECUTION_ID = "2f32838b-3f34-41e7-aa0f-701a30764b10"
+WORK_CADENCES = {
+    "OIS_0735_PREMARKET": {"label": "07:35", "sequence": 1, "previous": None, "evidence": "premarket"},
+    "OIS_0935_OPENING": {"label": "09:35", "sequence": 2, "previous": "OIS_0735_PREMARKET", "evidence": "opening"},
+    "OIS_1205_MIDDAY": {"label": "12:05", "sequence": 3, "previous": "OIS_0935_OPENING", "evidence": "midday"},
+    "OIS_1935_EVENING": {"label": "19:35", "sequence": 4, "previous": "OIS_1205_MIDDAY", "evidence": "evening"},
+}
+WORK_CADENCE_ORDER = tuple(WORK_CADENCES)
 
 
 def utc_stamp(now: datetime | None = None) -> str:
@@ -82,6 +90,11 @@ def state_payload_for_hash(state: Mapping[str, Any]) -> dict:
     if isinstance(payload.get("lineage"), dict):
         payload["lineage"].pop("current_state_id", None)
         payload["lineage"].pop("current_state_hash", None)
+    if isinstance(payload.get("cadence_chain"), list):
+        for item in payload["cadence_chain"]:
+            if isinstance(item, dict):
+                item.pop("current_state_id", None)
+                item.pop("current_state_hash", None)
     return payload
 
 
@@ -253,7 +266,61 @@ def load_work_ledgers(root: Path) -> tuple[dict, dict]:
     require(isinstance(transactions.get("ledger_version"), int), "WORK_STATE_TRANSACTION_LEDGER_VERSION")
     require(portfolio.get("events") == [] or isinstance(portfolio.get("events"), list), "WORK_STATE_PORTFOLIO_LEDGER_EVENTS")
     require(transactions.get("transactions") == [] or isinstance(transactions.get("transactions"), list), "WORK_STATE_TRANSACTION_LEDGER_TRANSACTIONS")
+    transaction_ids = [item.get("transaction_id") for item in transactions.get("transactions", []) if isinstance(item, dict) and item.get("transaction_id")]
+    require(len(transaction_ids) == len(set(transaction_ids)), "WORK_STATE_DUPLICATE_TRANSACTION")
     return portfolio, transactions
+
+
+def production_trading_date(production: Mapping[str, Any]) -> str:
+    source_as_of = production.get("source_as_of")
+    require(isinstance(source_as_of, str) and len(source_as_of) >= 10, "WORK_STATE_PRODUCTION_TRADING_DATE")
+    return source_as_of[:10]
+
+
+def daily_chain_id_for(trading_date: str, prior: Mapping[str, Any]) -> str:
+    seed = f"{SYSTEM}:{trading_date}:{prior['current_state_id']}:{prior['current_state_hash']}"
+    return "ois-work-daily-chain-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
+
+
+def cadence_idempotency_key(*, trading_date: str, cadence: str, production_snapshot_id: str) -> str:
+    return f"WFA001-W3:{trading_date}:{cadence}:{production_snapshot_id}"
+
+
+def find_execution_by_idempotency_key(root: Path, key: str) -> dict | None:
+    directory = root / STATE_ROOT / "executions"
+    if not directory.exists():
+        return None
+    matches = []
+    for path in directory.glob("*.json"):
+        doc = read_json(path)
+        if doc.get("idempotency_key") == key:
+            matches.append(doc)
+    require(len(matches) <= 1, "WORK_STATE_IDEMPOTENCY_DUPLICATE")
+    return matches[0] if matches else None
+
+
+def validate_cadence_order(prior: Mapping[str, Any], cadence: str, trading_date: str) -> str:
+    require(cadence in WORK_CADENCES, "WORK_STATE_UNKNOWN_CADENCE")
+    spec = WORK_CADENCES[cadence]
+    previous = spec["previous"]
+    if previous is None:
+        require(prior.get("cadence") is None, "WORK_STATE_CADENCE_ORDER")
+        return daily_chain_id_for(trading_date, prior)
+    require(prior.get("cadence_mode") == previous, "WORK_STATE_CADENCE_ORDER")
+    require(prior.get("trading_date") == trading_date, "WORK_STATE_CADENCE_TRADING_DATE")
+    require(prior.get("daily_chain_id"), "WORK_STATE_DAILY_CHAIN_MISSING")
+    return prior["daily_chain_id"]
+
+
+def cadence_added_evidence(cadence: str, production: Mapping[str, Any]) -> dict:
+    spec = WORK_CADENCES[cadence]
+    return {
+        "cadence": spec["label"],
+        "evidence_type": spec["evidence"],
+        "production_snapshot_id": production["production_snapshot_id"],
+        "source_run_id": production["source_run_id"],
+        "source_as_of": production["source_as_of"],
+    }
 
 
 def transition_decision_update(prior: Mapping[str, Any], production: Mapping[str, Any]) -> str:
@@ -267,6 +334,8 @@ def build_incremental_state(*, work_execution_id: str, prior: Mapping[str, Any],
     require(prior.get("current_state_id") and prior.get("current_state_hash"), "WORK_STATE_PRIOR_CURRENT_MISSING")
     require(prior.get("state_commit_status") == "PASS", "WORK_STATE_PRIOR_NOT_ACCEPTED")
     require(prior.get("report_qa_status") == "PASS", "WORK_STATE_PRIOR_QA_NOT_PASS")
+    require(prior.get("decision_state", {}).get("state_reset_detected") is False, "WORK_STATE_PRIOR_STATE_RESET")
+    require(prior.get("ledger_reset_detected") is not True, "WORK_STATE_PRIOR_LEDGER_RESET")
     require(portfolio.get("ledger_version") >= prior.get("portfolio_ledger_version"), "WORK_STATE_PORTFOLIO_LEDGER_ROLLBACK")
     require(transactions.get("ledger_version") >= prior.get("transaction_ledger_version"), "WORK_STATE_TRANSACTION_LEDGER_ROLLBACK")
     decision_update = transition_decision_update(prior, production)
@@ -360,6 +429,142 @@ def build_incremental_state(*, work_execution_id: str, prior: Mapping[str, Any],
     return {"state": state, "portfolio_ledger": next_portfolio, "transaction_ledger": next_transactions}
 
 
+def build_cadence_state(*, work_execution_id: str, prior: Mapping[str, Any], production: Mapping[str, Any],
+                        portfolio: Mapping[str, Any], transactions: Mapping[str, Any], cadence: str,
+                        trading_date: str, daily_chain_id: str, created_at: str) -> dict:
+    require(prior.get("current_state_id") and prior.get("current_state_hash"), "WORK_STATE_PRIOR_CURRENT_MISSING")
+    require(prior.get("state_commit_status") == "PASS", "WORK_STATE_PRIOR_NOT_ACCEPTED")
+    require(prior.get("report_qa_status") == "PASS", "WORK_STATE_PRIOR_QA_NOT_PASS")
+    require(prior.get("decision_state", {}).get("state_reset_detected") is False, "WORK_STATE_PRIOR_STATE_RESET")
+    require(prior.get("ledger_reset_detected") is not True, "WORK_STATE_PRIOR_LEDGER_RESET")
+    require(portfolio.get("ledger_version") >= prior.get("portfolio_ledger_version"), "WORK_STATE_PORTFOLIO_LEDGER_ROLLBACK")
+    require(transactions.get("ledger_version") >= prior.get("transaction_ledger_version"), "WORK_STATE_TRANSACTION_LEDGER_ROLLBACK")
+    spec = WORK_CADENCES[cadence]
+    prior_cadence_chain = list(prior.get("cadence_chain", []))
+    require(spec["label"] not in [item.get("cadence") for item in prior_cadence_chain if isinstance(item, dict)], "WORK_STATE_DUPLICATE_CADENCE")
+    added_evidence = cadence_added_evidence(cadence, production)
+    decision_state = json.loads(json.dumps(prior["decision_state"], sort_keys=True))
+    decision_state.update({
+        "decision_state_type": "FOUR_CADENCE_INCREMENTAL",
+        "previous_production_snapshot_id": prior["production_snapshot_id"],
+        "production_snapshot_id": production["production_snapshot_id"],
+        "decision_update": transition_decision_update(prior, production),
+        "state_reset_detected": False,
+    })
+    evidence_state = json.loads(json.dumps(prior["evidence_state"], sort_keys=True))
+    cadence_evidence = list(evidence_state.get("cadence_evidence", []))
+    cadence_evidence.append(added_evidence)
+    evidence_state.update({
+        "production_documents": list(PUBLIC_FILES),
+        "production_lineage": production["production_lineage"],
+        "source": "AUTHORITATIVE_PRODUCTION_FILES",
+        "fixture_used": False,
+        "fallback_used": False,
+        "prior_state_id": prior["current_state_id"],
+        "prior_state_hash": prior["current_state_hash"],
+        "incremental_update": "PASS",
+        "added_evidence": added_evidence,
+        "cadence_evidence": cadence_evidence,
+    })
+    cadence_chain = prior_cadence_chain + [{
+        "cadence": spec["label"],
+        "cadence_mode": cadence,
+        "sequence": spec["sequence"],
+        "work_execution_id": work_execution_id,
+        "previous_state_id": prior["current_state_id"],
+        "previous_state_hash": prior["current_state_hash"],
+    }]
+    state = {
+        "system": SYSTEM,
+        "state_schema_version": STATE_SCHEMA_VERSION,
+        "state_type": STATE_TYPE_INCREMENTAL,
+        "state_version": STATE_VERSION,
+        "bootstrap": False,
+        "work_execution_id": work_execution_id,
+        "execution_type": EXECUTION_TYPE_FOUR_CADENCE,
+        "cadence_mode": cadence,
+        "cadence": spec["label"],
+        "cadence_sequence": spec["sequence"],
+        "trading_date": trading_date,
+        "daily_chain_id": daily_chain_id,
+        "cadence_chain": cadence_chain,
+        "previous_state_id": prior["current_state_id"],
+        "previous_state_hash": prior["current_state_hash"],
+        "current_state_id": "PENDING",
+        "current_state_hash": "PENDING",
+        "production_snapshot_id": production["production_snapshot_id"],
+        "source_run_id": production["source_run_id"],
+        "source_commit_sha": production["source_commit_sha"],
+        "source_as_of": production["source_as_of"],
+        "decision_state": decision_state,
+        "evidence_state": evidence_state,
+        "portfolio_ledger_version": portfolio["ledger_version"],
+        "transaction_ledger_version": transactions["ledger_version"],
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "portfolio_ledger_continuity": "PASS",
+        "transaction_ledger_continuity": "PASS",
+        "cadence_order": "PASS",
+        "incremental_update_status": "PASS",
+        "report_qa_status": "PASS",
+        "state_commit_status": "CANDIDATE",
+        "created_at": created_at,
+        "lineage": {
+            "bootstrap": False,
+            "previous_state_id": prior["current_state_id"],
+            "previous_state_hash": prior["current_state_hash"],
+            "current_state_id": "PENDING",
+            "current_state_hash": "PENDING",
+            "production_snapshot_id": production["production_snapshot_id"],
+            "source_run_id": production["source_run_id"],
+            "source_commit_sha": production["source_commit_sha"],
+            "source_as_of": production["source_as_of"],
+            "trading_date": trading_date,
+            "daily_chain_id": daily_chain_id,
+            "cadence": spec["label"],
+        },
+    }
+    state_hash = calculate_state_hash(state)
+    sid = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=production["production_snapshot_id"], work_execution_id=work_execution_id, state_hash=state_hash)
+    state["current_state_hash"] = state_hash
+    state["current_state_id"] = sid
+    state["lineage"]["current_state_hash"] = state_hash
+    state["lineage"]["current_state_id"] = sid
+    state["cadence_chain"][-1]["current_state_id"] = sid
+    state["cadence_chain"][-1]["current_state_hash"] = state_hash
+    state_hash = calculate_state_hash(state)
+    sid = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=production["production_snapshot_id"], work_execution_id=work_execution_id, state_hash=state_hash)
+    state["current_state_hash"] = state_hash
+    state["current_state_id"] = sid
+    state["lineage"]["current_state_hash"] = state_hash
+    state["lineage"]["current_state_id"] = sid
+    state["cadence_chain"][-1]["current_state_id"] = sid
+    state["cadence_chain"][-1]["current_state_hash"] = state_hash
+    state["state_commit_status"] = "PASS"
+    next_portfolio = json.loads(json.dumps(portfolio, sort_keys=True))
+    next_transactions = json.loads(json.dumps(transactions, sort_keys=True))
+    next_portfolio.update({
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "current_state_id": sid,
+        "current_state_hash": state_hash,
+        "last_work_execution_id": work_execution_id,
+        "daily_chain_id": daily_chain_id,
+        "trading_date": trading_date,
+    })
+    next_transactions.update({
+        "ledger_bootstrap": False,
+        "ledger_reset_detected": False,
+        "current_state_id": sid,
+        "current_state_hash": state_hash,
+        "last_work_execution_id": work_execution_id,
+        "daily_chain_id": daily_chain_id,
+        "trading_date": trading_date,
+    })
+    validate_state_document(state)
+    return {"state": state, "portfolio_ledger": next_portfolio, "transaction_ledger": next_transactions}
+
+
 def verify_persisted_store(root: Path, state: Mapping[str, Any]) -> None:
     store = root / STATE_ROOT
     current = validate_state_file(store / "current_state.json")
@@ -430,7 +635,9 @@ def atomic_commit_initial_state(root: Path, bundle: Mapping[str, Any], *, fail_a
             shutil.rmtree(tmp)
 
 
-def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fail_after_stage: str | None = None) -> None:
+def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fail_after_stage: str | None = None,
+                                    execution_type: str = EXECUTION_TYPE_CONTINUITY,
+                                    idempotency_key: str | None = None) -> None:
     state = bundle["state"]
     store = root / STATE_ROOT
     history_path = store / "history" / f"{state['current_state_id']}.json"
@@ -450,7 +657,7 @@ def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fa
         write_json(tmp / "transaction_ledger.json", bundle["transaction_ledger"])
         execution = {
             "system": SYSTEM,
-            "execution_type": EXECUTION_TYPE_CONTINUITY,
+            "execution_type": execution_type,
             "work_execution_id": state["work_execution_id"],
             "production_snapshot_id": state["production_snapshot_id"],
             "previous_state_id": state["previous_state_id"],
@@ -460,8 +667,11 @@ def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fa
             "state_commit_status": "PASS",
             "report_qa_status": "PASS",
             "created_at": state["created_at"],
-            "idempotency_key": f"{state['work_execution_id']}:{state['production_snapshot_id']}",
+            "idempotency_key": idempotency_key or f"{state['work_execution_id']}:{state['production_snapshot_id']}",
         }
+        for optional in ("cadence", "cadence_mode", "trading_date", "daily_chain_id"):
+            if optional in state:
+                execution[optional] = state[optional]
         write_json(tmp / "executions" / f"{state['work_execution_id']}.json", execution)
         validate_state_file(tmp / "current_state.json")
         validate_state_file(tmp / "history" / f"{state['current_state_id']}.json")
@@ -542,11 +752,49 @@ def transition_work_state(root: Path, *, work_execution_id: str | None = None, n
     return acceptance_summary(root, bundle["state"], idempotency_status="PASS", final_result="PASS", execution_type=EXECUTION_TYPE_CONTINUITY)
 
 
+def transition_work_cadence(root: Path, cadence: str, *, work_execution_id: str | None = None,
+                            now: datetime | None = None, fail_after_stage: str | None = None) -> dict:
+    root = root.resolve()
+    production = validate_authoritative_production_snapshot(root)
+    trading_date = production_trading_date(production)
+    idempotency_key = cadence_idempotency_key(trading_date=trading_date, cadence=cadence, production_snapshot_id=production["production_snapshot_id"])
+    prior_execution = find_execution_by_idempotency_key(root, idempotency_key)
+    if prior_execution is not None:
+        existing_state = validate_state_file(root / STATE_ROOT / "history" / f"{prior_execution['current_state_id']}.json")
+        require(prior_execution["current_state_hash"] == existing_state["current_state_hash"], "WORK_STATE_EXECUTION_REFERENCE")
+        require(load_current_state(root) is not None, "WORK_STATE_PRIOR_MISSING")
+        return acceptance_summary(root, existing_state, idempotency_status="IDEMPOTENT_REPLAY", final_result="PASS", execution_type=EXECUTION_TYPE_FOUR_CADENCE)
+    prior = load_current_state(root)
+    require(prior is not None, "WORK_STATE_PRIOR_MISSING")
+    verify_persisted_store(root, prior)
+    daily_chain_id = validate_cadence_order(prior, cadence, trading_date)
+    portfolio, transactions = load_work_ledgers(root)
+    work_execution_id = work_execution_id or str(uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4())
+    created_at = utc_stamp(now)
+    bundle = build_cadence_state(work_execution_id=work_execution_id, prior=prior, production=production,
+                                 portfolio=portfolio, transactions=transactions, cadence=cadence,
+                                 trading_date=trading_date, daily_chain_id=daily_chain_id, created_at=created_at)
+    atomic_commit_incremental_state(root, bundle, fail_after_stage=fail_after_stage,
+                                    execution_type=EXECUTION_TYPE_FOUR_CADENCE, idempotency_key=idempotency_key)
+    return acceptance_summary(root, bundle["state"], idempotency_status="PASS", final_result="PASS", execution_type=EXECUTION_TYPE_FOUR_CADENCE)
+
+
+def run_four_cadence_acceptance(root: Path, *, now: datetime | None = None) -> list[dict]:
+    summaries = []
+    for cadence in WORK_CADENCE_ORDER:
+        summaries.append(transition_work_cadence(root, cadence, now=now))
+    return summaries
+
+
 def acceptance_summary(root: Path, state: Mapping[str, Any], *, idempotency_status: str, final_result: str,
                        execution_type: str = EXECUTION_TYPE_INITIAL) -> dict:
     return {
         "system": SYSTEM,
         "execution_type": execution_type,
+        "cadence": state.get("cadence"),
+        "cadence_mode": state.get("cadence_mode"),
+        "trading_date": state.get("trading_date"),
+        "daily_chain_id": state.get("daily_chain_id"),
         "state_type": state["state_type"],
         "bootstrap": state.get("bootstrap"),
         "work_execution_id": state["work_execution_id"],
@@ -637,13 +885,88 @@ def write_w2_evidence(root: Path, summary: Mapping[str, Any]) -> Path:
     return output
 
 
+def write_w3_evidence(root: Path, summaries: list[Mapping[str, Any]]) -> Path:
+    require(len(summaries) == 4, "WORK_STATE_W3_CADENCE_COUNT")
+    output = root / "data/acceptance/WFA001_OIS_W3_FOUR_CADENCE_EVIDENCE.json"
+    states = [validate_state_file(root / STATE_ROOT / "history" / f"{summary['current_state_id']}.json") for summary in summaries]
+    trading_dates = {state.get("trading_date") for state in states}
+    daily_chain_ids = {state.get("daily_chain_id") for state in states}
+    order_pass = [state.get("cadence_mode") for state in states] == list(WORK_CADENCE_ORDER)
+    continuity = True
+    for prior, current in zip(states, states[1:]):
+        continuity = continuity and current["previous_state_id"] == prior["current_state_id"] and current["previous_state_hash"] == prior["current_state_hash"]
+    portfolio_continuity = all(current["portfolio_ledger_version"] >= prior["portfolio_ledger_version"] for prior, current in zip(states, states[1:]))
+    transaction_continuity = all(current["transaction_ledger_version"] >= prior["transaction_ledger_version"] for prior, current in zip(states, states[1:]))
+    no_reset = all(state.get("bootstrap") is False and state.get("state_type") != STATE_TYPE_INITIAL and state.get("decision_state", {}).get("state_reset_detected") is False for state in states)
+    no_ledger_reset = all(state.get("ledger_reset_detected") is False for state in states)
+    idempotency_status = "PASS" if all(summary.get("idempotency_status") == "PASS" for summary in summaries) else "FAIL"
+    cadences = []
+    for state in states:
+        cadences.append({
+            "cadence": state["cadence"],
+            "cadence_mode": state["cadence_mode"],
+            "work_execution_id": state["work_execution_id"],
+            "previous_state_id": state["previous_state_id"],
+            "current_state_id": state["current_state_id"],
+            "previous_state_hash": state["previous_state_hash"],
+            "current_state_hash": state["current_state_hash"],
+            "production_snapshot_id": state["production_snapshot_id"],
+            "portfolio_ledger_version": state["portfolio_ledger_version"],
+            "transaction_ledger_version": state["transaction_ledger_version"],
+            "report_qa_status": state["report_qa_status"],
+            "state_commit_status": state["state_commit_status"],
+        })
+    final = (
+        len(trading_dates) == 1
+        and len(daily_chain_ids) == 1
+        and order_pass
+        and continuity
+        and portfolio_continuity
+        and transaction_continuity
+        and no_reset
+        and no_ledger_reset
+        and idempotency_status == "PASS"
+        and all(state["report_qa_status"] == "PASS" and state["state_commit_status"] == "PASS" for state in states)
+    )
+    try:
+        repo_head = git(root, "rev-parse", "HEAD")
+    except Exception:
+        repo_head = "UNKNOWN_NON_GIT_TEST_ROOT"
+    value = {
+        "wfa_id": "WFA-001 OIS W3",
+        "system": SYSTEM,
+        "trading_date": next(iter(trading_dates)) if len(trading_dates) == 1 else None,
+        "daily_chain_id": next(iter(daily_chain_ids)) if len(daily_chain_ids) == 1 else None,
+        "cadences": cadences,
+        "cadence_order": "PASS" if order_pass else "FAIL",
+        "state_chain_continuity": "PASS" if continuity else "FAIL",
+        "incremental_update_status": "PASS" if all(state.get("incremental_update_status") == "PASS" for state in states) else "FAIL",
+        "portfolio_ledger_continuity": "PASS" if portfolio_continuity else "FAIL",
+        "transaction_ledger_continuity": "PASS" if transaction_continuity else "FAIL",
+        "state_reset_detected": not no_reset,
+        "ledger_reset_detected": not no_ledger_reset,
+        "idempotency_status": idempotency_status,
+        "repo_head": repo_head,
+        "final_result": "PASS" if final else "FAIL",
+    }
+    write_json(output, value)
+    return output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--evidence", action="store_true")
     parser.add_argument("--transition", action="store_true")
+    parser.add_argument("--w3-four-cadence", action="store_true")
     args = parser.parse_args()
     try:
+        if args.w3_four_cadence:
+            summaries = run_four_cadence_acceptance(args.root)
+            if args.evidence:
+                write_w3_evidence(args.root.resolve(), summaries)
+            print(json.dumps(summaries, sort_keys=True))
+            return 0
         summary = transition_work_state(args.root) if args.transition else bootstrap_initial_state(args.root)
         if args.evidence:
             if args.transition:
