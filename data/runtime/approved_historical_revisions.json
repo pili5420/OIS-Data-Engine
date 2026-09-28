@@ -1,0 +1,66 @@
+{
+  "schema_version": "OIS-HISTORICAL-REVISION-EVIDENCE-1.0",
+  "validation_status": "PASS",
+  "revisions": [
+    {
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-11T04:00:00Z",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-HR-001",
+      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 WTI futures OHLCV after preliminary archive snapshot.",
+      "before_hash": "c4b625c4e64a77d557bccd6dca5024414bbd31874cfb1dbcedebf6654c21ec82",
+      "after_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
+      "affected_record": {
+        "dataset": "historical_prices",
+        "instrument": "wti",
+        "date": "2026-09-11",
+        "fields": ["low", "close", "volume"],
+        "old_values": {
+          "open": 104.31999969482422,
+          "high": 104.45999908447266,
+          "low": 98.93000030517578,
+          "close": 99.12999725341797,
+          "volume": 137938.0
+        },
+        "corrected_values": {
+          "open": 104.31999969482422,
+          "high": 104.45999908447266,
+          "low": 98.4800033569336,
+          "close": 100.05000305175781,
+          "volume": 437382.0
+        }
+      }
+    },
+    {
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-11T04:00:00Z",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-HR-001",
+      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 Brent futures OHLCV after preliminary archive snapshot.",
+      "before_hash": "e6c79625d21201591139a22089fa2d9ceec5d67e678e3bc8102ec40928976b2f",
+      "after_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+      "affected_record": {
+        "dataset": "historical_prices",
+        "instrument": "brent",
+        "date": "2026-09-11",
+        "fields": ["low", "close", "volume"],
+        "old_values": {
+          "open": 109.16000366210938,
+          "high": 110.19000244140625,
+          "low": 103.55999755859375,
+          "close": 103.68000030517578,
+          "volume": 23411.0
+        },
+        "corrected_values": {
+          "open": 109.16000366210938,
+          "high": 110.19000244140625,
+          "low": 103.4800033569336,
+          "close": 104.61000061035156,
+          "volume": 72538.0
+        }
+      }
+    }
+  ]
+}

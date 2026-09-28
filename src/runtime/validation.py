@@ -105,7 +105,8 @@ def validate_documents(documents: dict[str, dict], history: dict, now: datetime)
     schema = read_json(ROOT / "schemas" / "ois_runtime.schema.json")
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     baseline = documents["ois_status.json"]
-    common = ("runtime_contract_version", "generated_at", "data_as_of", "source", "source_timestamp", "snapshot_id",
+    common = ("runtime_contract_version", "generated_at", "data_as_of", "source_as_of", "source", "source_timestamp", "snapshot_id",
+              "production_snapshot_id", "run_id", "commit_sha", "published", "lineage",
               "validation_status", "quality_flags", "missing_fields", "duplicate_status", "freshness_status")
     for filename in PUBLIC_FILES:
         document = documents[filename]
@@ -113,6 +114,11 @@ def validate_documents(documents: dict[str, dict], history: dict, now: datetime)
         require(not errors, f"SCHEMA:{filename}:" + (errors[0].message if errors else ""))
         require(all(document[key] == baseline[key] for key in common), f"CROSS_FILE_METADATA:{filename}")
     require(baseline["data_as_of"] == latest_completed(now), "CROSS_FILE_FRESHNESS")
+    require(baseline["source_as_of"] == baseline["data_as_of"], "SOURCE_AS_OF_MISMATCH")
+    require(baseline["production_snapshot_id"] == baseline["snapshot_id"], "PRODUCTION_SNAPSHOT_ID_MISMATCH")
+    require(baseline["published"] is True, "PUBLISHED_FLAG_MISMATCH")
+    lineage = baseline["lineage"]
+    require(lineage["production_snapshot_id"] == baseline["production_snapshot_id"] and lineage["run_id"] == baseline["run_id"] and lineage["commit_sha"] == baseline["commit_sha"] and lineage["source_as_of"] == baseline["source_as_of"], "LINEAGE_METADATA_MISMATCH")
     require(datetime.fromisoformat(baseline["generated_at"].replace("Z", "+00:00")) <= now, "GENERATED_AT_FUTURE")
     for ts in baseline["source_timestamp"].values():
         require(datetime.fromisoformat(ts.replace("Z", "+00:00")) <= now, "SOURCE_TIMESTAMP_FUTURE")

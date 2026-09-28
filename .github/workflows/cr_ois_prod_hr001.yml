@@ -1,0 +1,59 @@
+name: CR-OIS-PROD-HR-001 Production Historical Revision Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cr-ois-prod-hr-001
+    paths:
+      - 'src/runtime/**'
+      - 'scripts/run_cr_ois_prod_hr001_acceptance.py'
+      - 'data/runtime/approved_historical_revisions.json'
+      - 'schemas/ois_runtime.schema.json'
+      - 'tests/**'
+      - '.github/workflows/cr_ois_prod_hr001.yml'
+  pull_request:
+    paths:
+      - 'src/runtime/**'
+      - 'scripts/run_cr_ois_prod_hr001_acceptance.py'
+      - 'data/runtime/approved_historical_revisions.json'
+      - 'schemas/ois_runtime.schema.json'
+      - 'tests/**'
+      - '.github/workflows/cr_ois_prod_hr001.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cr-ois-prod-hr001:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run OIS runtime revision regression tests
+        run: >-
+          python -m unittest
+          tests.test_runtime.RuntimeIntegrationTests.test_approved_historical_revision_rebuilds_and_publishes_consistent_lineage
+          tests.test_runtime.RuntimeIntegrationTests.test_approved_revision_deterministic_replay_hash_identical
+          tests.test_runtime.RuntimeIntegrationTests.test_unapproved_revision_before_after_hash_mismatch_fail_closed
+          tests.test_runtime.RuntimeUnitTests.test_history_seed_stable_and_revisions_fail
+      - name: Run CR-OIS-PROD-HR-001 production runtime acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: python scripts/run_cr_ois_prod_hr001_acceptance.py --output artifacts/cr_ois_prod_hr001
+      - name: Upload CR-OIS-PROD-HR-001 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CR-OIS-PROD-HR-001-EVIDENCE
+          path: artifacts/cr_ois_prod_hr001/CR_OIS_PROD_HR001_ACCEPTANCE_EVIDENCE.json
+          if-no-files-found: error

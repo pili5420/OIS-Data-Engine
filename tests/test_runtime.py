@@ -5,6 +5,7 @@ import csv
 import io
 import json
 import math
+import os
 import shutil
 import subprocess
 import tempfile
@@ -21,20 +22,26 @@ from src.indicators.technical import build_indicators
 from src.runtime.engine import (CSV_FIELDS, STATE_PATH, build_candidate, encoded, git, load_previous,
                                 merge_history, validate_bundle, write_json)
 from src.runtime.publish import publish
+from src.runtime.revisions import REVISION_ID, row_hash
 from src.runtime.source import IntegrityError, TransientError, get_json, latest_completed, normalize, schedule, stamp
-from src.runtime.validation import PUBLIC_FILES, read_json, validate_history, validate_indicators
+from src.runtime.validation import FIELDS, PUBLIC_FILES, read_json, validate_history, validate_indicators
 
 
 ROOT = Path(__file__).resolve().parents[1]
 NOW = datetime.now(timezone.utc)
 
 
-def fixture_rows():
-    end = latest_completed(NOW)
-    days = list(schedule((NOW - timedelta(days=720)).date().isoformat(), end))[-410:]
+
+
+def fixture_rows_for(now):
+    end = latest_completed(now)
+    days = list(schedule((now - timedelta(days=720)).date().isoformat(), end))[-410:]
     return [{"date": day, "open": 80 + math.sin(i / 5), "high": 83 + math.sin(i / 5),
              "low": 78 + math.sin(i / 5), "close": 81 + math.sin(i / 5), "volume": 1000 + i,
              "source": "yahoo_chart", "source_timestamp": day + "T04:00:00Z"} for i, day in enumerate(days)]
+
+def fixture_rows():
+    return fixture_rows_for(NOW)
 
 
 class RuntimeUnitTests(unittest.TestCase):
@@ -72,9 +79,10 @@ class RuntimeUnitTests(unittest.TestCase):
             validate_indicators(self.rows, actual)
 
     def test_history_seed_stable_and_revisions_fail(self):
-        merged, revisions = merge_history(self.rows, self.rows[20:], True)
+        merged, revisions, accepted = merge_history(self.rows, self.rows[20:], True)
         self.assertEqual(merged, self.rows)
         self.assertEqual(revisions, 0)
+        self.assertEqual(accepted, [])
         changed = copy.deepcopy(self.rows)
         changed[-2]["close"] += .1
         with self.assertRaisesRegex(IntegrityError, "SOURCE_REVISION"):
@@ -138,8 +146,10 @@ class RuntimeUnitTests(unittest.TestCase):
 class RuntimeIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.temp = tempfile.TemporaryDirectory(prefix="ois-runtime-tests-")
-        cls.base = Path(cls.temp.name)
+        cls.temp = None
+        cls.base = ROOT / "artifacts" / f"ois-runtime-tests-local-{os.getpid()}"
+        shutil.rmtree(cls.base, ignore_errors=True)
+        cls.base.mkdir(parents=True, exist_ok=True)
         cls.repo = cls.base / "repo"
         cls.repo.mkdir()
         git(cls.repo, "init", "-b", "main")
@@ -159,7 +169,7 @@ class RuntimeIntegrationTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.temp.cleanup()
+        shutil.rmtree(cls.base, ignore_errors=True)
 
     def copy_candidate(self, label):
         path = self.base / label
@@ -243,6 +253,100 @@ class RuntimeIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(IntegrityError, "SOURCE_REVISION"):
             build_candidate(root, self.base / "revision-fail", NOW, fetcher=lambda *_: (changed, []))
         self.assertEqual(before, {name: (root / "data/production" / name).read_bytes() for name in PUBLIC_FILES})
+
+
+    def revision_root(self, label, *, evidence=True):
+        now = datetime(2026, 9, 14, 10, tzinfo=timezone.utc)
+        rows = fixture_rows_for(now)
+        old_rows = copy.deepcopy(rows)
+        new_rows = copy.deepcopy(rows)
+        old_rows[-1]["low"] += 0.45
+        old_rows[-1]["close"] -= 0.92
+        old_rows[-1]["volume"] = 137938.0
+        old_rows[-1]["source_timestamp"] = "2026-09-11T04:00:00Z"
+        new_rows[-1]["source_timestamp"] = "2026-09-11T04:00:00Z"
+        root = self.base / label
+        root.mkdir()
+        git(root, "init", "-b", "main")
+        git(root, "config", "user.email", "ois-test@example.invalid")
+        git(root, "config", "user.name", "OIS Test")
+        git(root, "commit", "--allow-empty", "-m", "empty baseline")
+        production = root / "data/production"
+        production.mkdir(parents=True)
+        for key, source_rows in (("wti", old_rows), ("brent", rows)):
+            with (production / f"ois_{key}_clean.csv").open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+                writer.writeheader()
+                writer.writerows({field: row[field] for field in CSV_FIELDS} for row in source_rows)
+        baseline = self.base / (label + "-baseline")
+        build_candidate(root, baseline, now, fetcher=lambda ticker, _: (copy.deepcopy(old_rows if ticker == "CL=F" else rows), []))
+        shutil.copytree(baseline / "data", root / "data", dirs_exist_ok=True)
+        git(root, "add", "data")
+        git(root, "commit", "-m", "runtime baseline")
+        if evidence:
+            ev = {
+                "schema_version": "OIS-HISTORICAL-REVISION-EVIDENCE-1.0",
+                "validation_status": "PASS",
+                "revisions": [{
+                    "revision_id": REVISION_ID,
+                    "source_provenance": "yahoo_chart",
+                    "upstream_revision_timestamp": "2026-09-11T04:00:00Z",
+                    "approval_status": "APPROVED",
+                    "approved_by": "CR-OIS-PROD-HR-001",
+                    "revision_reason": "Approved upstream historical correction test evidence.",
+                    "before_hash": row_hash(old_rows[-1]),
+                    "after_hash": row_hash(new_rows[-1]),
+                    "affected_record": {"dataset": "historical_prices", "instrument": "wti", "date": "2026-09-11", "fields": ["low", "close", "volume"],
+                                        "old_values": {field: old_rows[-1][field] for field in FIELDS},
+                                        "corrected_values": {field: new_rows[-1][field] for field in FIELDS}}
+                }]
+            }
+            write_json(root / "data/runtime/approved_historical_revisions.json", ev)
+        return root, now, rows, old_rows, new_rows
+
+    def test_approved_historical_revision_rebuilds_and_publishes_consistent_lineage(self):
+        root, now, rows, old_rows, new_rows = self.revision_root("approved-revision-root")
+        candidate = self.base / "approved-revision-candidate"
+        result = build_candidate(root, candidate, now, fetcher=lambda ticker, _: (copy.deepcopy(new_rows if ticker == "CL=F" else rows), []))
+        self.assertEqual(result["validation_status"], "PASS")
+        self.assertEqual(result["accepted_historical_revisions"][0]["revision_id"], REVISION_ID)
+        docs = {name: read_json(candidate / "data/production" / name) for name in PUBLIC_FILES}
+        lineage = docs["ois_status.json"]["lineage"]
+        self.assertEqual(lineage["historical_revision_recovery"], "PASS")
+        self.assertEqual(lineage["approved_revision_count"], 1)
+        self.assertTrue(all(doc["published"] is True for doc in docs.values()))
+        self.assertEqual(len({doc["production_snapshot_id"] for doc in docs.values()}), 1)
+        self.assertEqual(len({doc["run_id"] for doc in docs.values()}), 1)
+        self.assertEqual(len({doc["commit_sha"] for doc in docs.values()}), 1)
+        self.assertEqual(len({doc["source_as_of"] for doc in docs.values()}), 1)
+        rolling = docs["ois_chart_rolling_180.json"]
+        self.assertEqual(rolling["record_count"], 180)
+        self.assertTrue(all(count == 180 for count in rolling["integrity"]["counts"].values()))
+        self.assertEqual(rolling["update_mode"], "CONTROLLED_HISTORICAL_REBUILD")
+
+    def test_unapproved_revision_before_after_hash_mismatch_fail_closed(self):
+        for mutation in ("missing", "before", "after", "approval"):
+            root, now, rows, old_rows, new_rows = self.revision_root("revision-" + mutation, evidence=(mutation != "missing"))
+            if mutation != "missing":
+                ev_path = root / "data/runtime/approved_historical_revisions.json"
+                ev = read_json(ev_path)
+                if mutation == "before": ev["revisions"][0]["before_hash"] = "0" * 64
+                if mutation == "after": ev["revisions"][0]["after_hash"] = "0" * 64
+                if mutation == "approval": ev["revisions"][0]["approval_status"] = "HOLD"
+                write_json(ev_path, ev)
+            before = {name: (root / "data/production" / name).read_bytes() for name in PUBLIC_FILES}
+            with self.subTest(mutation=mutation), self.assertRaisesRegex(IntegrityError, "SOURCE_REVISION"):
+                build_candidate(root, self.base / ("revision-blocked-" + mutation), now, fetcher=lambda ticker, _: (copy.deepcopy(new_rows if ticker == "CL=F" else rows), []))
+            self.assertEqual(before, {name: (root / "data/production" / name).read_bytes() for name in PUBLIC_FILES})
+
+    def test_approved_revision_deterministic_replay_hash_identical(self):
+        root, now, rows, old_rows, new_rows = self.revision_root("revision-replay-root")
+        first = self.base / "revision-replay-a"
+        second = self.base / "revision-replay-b"
+        build_candidate(root, first, now, fetcher=lambda ticker, _: (copy.deepcopy(new_rows if ticker == "CL=F" else rows), []))
+        build_candidate(root, second, now, fetcher=lambda ticker, _: (copy.deepcopy(new_rows if ticker == "CL=F" else rows), []))
+        self.assertEqual(read_json(first / STATE_PATH)["snapshot_id"], read_json(second / STATE_PATH)["snapshot_id"])
+        self.assertEqual(read_json(first / "data/production/ois_chart_rolling_180.json")["datasets"], read_json(second / "data/production/ois_chart_rolling_180.json")["datasets"])
 
     def test_offline_fixture_is_never_publishable(self):
         fixture = self.base / "fixture.json"
