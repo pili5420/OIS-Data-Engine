@@ -78,8 +78,8 @@
     "validation_status": "PASS"
   },
   "bootstrap_revised_rows": {
-    "brent": 1,
-    "wti": 1
+    "brent": 0,
+    "wti": 0
   },
   "chart_payload_schema": "PASS",
   "checks": {
@@ -95,52 +95,23 @@
     "trading_date": "PASS",
     "type": "PASS"
   },
-  "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
+  "commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
   "data_as_of": "2026-09-25",
   "duplicate_status": "PASS",
   "failure_reason": null,
   "freshness_status": "PASS",
-  "generated_at": "2026-09-28T09:18:42Z",
-  "last_attempt": "2026-09-28T09:18:42Z",
-  "last_successful_update": "2026-09-28T09:18:42Z",
+  "generated_at": "2026-09-28T10:40:09Z",
+  "last_attempt": "2026-09-28T10:40:09Z",
+  "last_successful_update": "2026-09-28T10:40:09Z",
   "lineage": {
-    "approved_revision_count": 2,
-    "approved_revisions": [
-      {
-        "after_hash": "06e9f84342c7914f39a68057b2249dcbeb2bf69465ff532ffd81f9909cb428d2",
-        "approval_status": "APPROVED",
-        "before_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
-        "date": "2026-09-11",
-        "fields": [
-          "volume"
-        ],
-        "instrument": "wti",
-        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 WTI futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
-        "source_provenance": "yahoo_chart",
-        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
-      },
-      {
-        "after_hash": "f8d9f1adf4c3b0c4cd0b9d561ca83d083266b31fffed7cd31106d9fc765a374d",
-        "approval_status": "APPROVED",
-        "before_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
-        "date": "2026-09-11",
-        "fields": [
-          "volume"
-        ],
-        "instrument": "brent",
-        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 Brent futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
-        "source_provenance": "yahoo_chart",
-        "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
-      }
-    ],
-    "commit_sha": "eb97556be73e20642b7d4373f9d5131e24fc7648",
-    "historical_revision_recovery": "PASS",
-    "migration_from_legacy": true,
+    "approved_revision_count": 0,
+    "approved_revisions": [],
+    "commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+    "historical_revision_recovery": "NOT_APPLICABLE",
+    "migration_from_legacy": false,
     "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
-    "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-    "run_id": "legacy-migration-36402425921",
+    "revision_id": null,
+    "run_id": "36410773469",
     "source_as_of": "2026-09-25"
   },
   "missing_fields": [],
@@ -152,7 +123,7 @@
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 2,
-  "run_id": "legacy-migration-36402425921",
+  "run_id": "36410773469",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-VALIDATION-1.0",
   "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
