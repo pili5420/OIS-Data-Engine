@@ -1,0 +1,62 @@
+{
+  "bootstrap": true,
+  "created_at": "2026-09-28T11:45:07Z",
+  "current_state_hash": "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c",
+  "decision_state": {
+    "decision_state_type": "INITIAL_BASELINE",
+    "positions": [],
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "signals": [],
+    "state_reset_detected": false
+  },
+  "evidence_state": {
+    "fallback_used": false,
+    "fixture_used": false,
+    "production_documents": [
+      "ois_status.json",
+      "ois_ingestion_validation.json",
+      "ois_chart_payload.json",
+      "ois_chart_rolling_180.json"
+    ],
+    "production_lineage": {
+      "approved_revision_count": 0,
+      "approved_revisions": [],
+      "commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+      "historical_revision_recovery": "NOT_APPLICABLE",
+      "migration_from_legacy": false,
+      "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+      "revision_id": null,
+      "run_id": "36410773469",
+      "source_as_of": "2026-09-25"
+    },
+    "source": "AUTHORITATIVE_PRODUCTION_FILES"
+  },
+  "ledger_bootstrap": true,
+  "lineage": {
+    "bootstrap": true,
+    "current_state_hash": "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c",
+    "previous_state_hash": null,
+    "previous_state_id": null,
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "source_as_of": "2026-09-25",
+    "source_commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+    "source_run_id": "36410773469"
+  },
+  "portfolio_ledger_version": 1,
+  "previous_state_hash": null,
+  "previous_state_id": null,
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "report_qa_status": "PASS",
+  "source_as_of": "2026-09-25",
+  "source_commit_sha": "ffbcb4d4f466519ff47a3e40698937eb062f0e0b",
+  "source_run_id": "36410773469",
+  "state_commit_status": "PASS",
+  "state_schema_version": "OIS-WORK-STATE-1.0",
+  "state_type": "INITIAL_ACCEPTED_STATE",
+  "state_version": 1,
+  "system": "OIS V4.4",
+  "transaction_ledger_version": 1,
+  "work_execution_id": "2f32838b-3f34-41e7-aa0f-701a30764b10"
+}

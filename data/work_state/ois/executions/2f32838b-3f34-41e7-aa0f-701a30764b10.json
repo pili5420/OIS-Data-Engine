@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-09-28T11:45:07Z",
+  "current_state_hash": "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3",
+  "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c",
+  "execution_type": "INITIAL_STATE_BOOTSTRAP",
+  "idempotency_key": "2f32838b-3f34-41e7-aa0f-701a30764b10:4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "report_qa_status": "PASS",
+  "state_commit_status": "PASS",
+  "system": "OIS V4.4",
+  "work_execution_id": "2f32838b-3f34-41e7-aa0f-701a30764b10"
+}
