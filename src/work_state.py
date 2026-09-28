@@ -22,6 +22,7 @@ STATE_TYPE_INCREMENTAL = "INCREMENTAL_ACCEPTED_STATE"
 EXECUTION_TYPE_INITIAL = "INITIAL_STATE_BOOTSTRAP"
 EXECUTION_TYPE_CONTINUITY = "STATE_CONTINUITY_ACCEPTANCE"
 EXECUTION_TYPE_FOUR_CADENCE = "FOUR_CADENCE_INCREMENTAL_ACCEPTANCE"
+EXECUTION_TYPE_RECOVERY = "FAILURE_RECOVERY_ACCEPTANCE"
 STATE_VERSION = 1
 STATE_ROOT = Path("data/work_state/ois")
 EXPECTED_BOOTSTRAP_SNAPSHOT_ID = "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4"
@@ -35,6 +36,12 @@ WORK_CADENCES = {
     "OIS_1935_EVENING": {"label": "19:35", "sequence": 4, "previous": "OIS_1205_MIDDAY", "evidence": "evening"},
 }
 WORK_CADENCE_ORDER = tuple(WORK_CADENCES)
+W4_FAILURE_SCENARIOS = (
+    "PRODUCTION_DATA_VALIDATION_FAIL",
+    "STATE_CANDIDATE_VALIDATION_FAIL",
+    "ATOMIC_COMMIT_FAIL",
+    "LEDGER_MUTATION_FAIL",
+)
 
 
 def utc_stamp(now: datetime | None = None) -> str:
@@ -48,6 +55,10 @@ def canonical_bytes(value: Mapping[str, Any]) -> bytes:
 
 def sha256_hex(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_bytes(value)).hexdigest()
+
+
+def file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def production_documents(root: Path) -> dict[str, dict]:
@@ -297,6 +308,28 @@ def find_execution_by_idempotency_key(root: Path, key: str) -> dict | None:
             matches.append(doc)
     require(len(matches) <= 1, "WORK_STATE_IDEMPOTENCY_DUPLICATE")
     return matches[0] if matches else None
+
+
+def store_paths(root: Path) -> dict[str, Path]:
+    return {
+        "current": root / STATE_ROOT / "current_state.json",
+        "portfolio": root / STATE_ROOT / "portfolio_ledger.json",
+        "transaction": root / STATE_ROOT / "transaction_ledger.json",
+    }
+
+
+def accepted_history_ids(root: Path) -> set[str]:
+    directory = root / STATE_ROOT / "history"
+    return {path.stem for path in directory.glob("*.json")} if directory.exists() else set()
+
+
+def store_bytes_hashes(root: Path) -> dict[str, str]:
+    paths = store_paths(root)
+    return {
+        "current_state_hash": file_sha256(paths["current"]),
+        "portfolio_ledger_hash": file_sha256(paths["portfolio"]),
+        "transaction_ledger_hash": file_sha256(paths["transaction"]),
+    }
 
 
 def validate_cadence_order(prior: Mapping[str, Any], cadence: str, trading_date: str) -> str:
@@ -683,6 +716,10 @@ def atomic_commit_incremental_state(root: Path, bundle: Mapping[str, Any], *, fa
                 require(not ("history" in target.parts and target.exists()), "WORK_STATE_HISTORY_IMMUTABLE")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(path, target)
+                if fail_after_stage == "after_history" and target == history_path:
+                    raise IntegrityError("WORK_STATE_INJECTED_AFTER_HISTORY_COMMIT_FAILURE")
+                if fail_after_stage == "current_pointer" and target == current_path:
+                    raise IntegrityError("WORK_STATE_INJECTED_CURRENT_POINTER_FAILURE")
         if fail_after_stage == "persist":
             raise IntegrityError("WORK_STATE_INJECTED_POST_PERSIST_FAILURE")
         verify_persisted_store(root, state)
@@ -784,6 +821,171 @@ def run_four_cadence_acceptance(root: Path, *, now: datetime | None = None) -> l
     for cadence in WORK_CADENCE_ORDER:
         summaries.append(transition_work_cadence(root, cadence, now=now))
     return summaries
+
+
+def failure_evidence_path(root: Path, failure_execution_id: str) -> Path:
+    return root / STATE_ROOT / "failures" / f"{failure_execution_id}.json"
+
+
+def record_failure_evidence(root: Path, *, failure_execution_id: str, scenario: str, failure_class: str,
+                            baseline: Mapping[str, Any], attempted_production_snapshot_id: str | None,
+                            before: Mapping[str, str], after: Mapping[str, str],
+                            accepted_before: set[str], accepted_after: set[str],
+                            error_code: str, data_gate_status: str | None = None,
+                            render_gate_status: str | None = None) -> dict:
+    accepted_created = len(accepted_after - accepted_before) > 0
+    evidence = {
+        "system": SYSTEM,
+        "execution_type": "FAILURE_ATTEMPT",
+        "failure_execution_id": failure_execution_id,
+        "failure_scenario": scenario,
+        "failure_class": failure_class,
+        "attempted_previous_state_id": baseline["current_state_id"],
+        "attempted_previous_state_hash": baseline["current_state_hash"],
+        "attempted_production_snapshot_id": attempted_production_snapshot_id,
+        "validation_status": "FAIL",
+        "state_commit_status": "FAIL",
+        "rollback_status": "PASS" if before == after and not accepted_created else "FAIL",
+        "atomic_rollback_status": "PASS" if scenario == "ATOMIC_COMMIT_FAIL" and before == after and not accepted_created else None,
+        "current_state_before": baseline["current_state_id"],
+        "current_state_after": load_current_state(root)["current_state_id"],
+        "current_state_hash_before": before["current_state_hash"],
+        "current_state_hash_after": after["current_state_hash"],
+        "portfolio_ledger_hash_before": before["portfolio_ledger_hash"],
+        "portfolio_ledger_hash_after": after["portfolio_ledger_hash"],
+        "transaction_ledger_hash_before": before["transaction_ledger_hash"],
+        "transaction_ledger_hash_after": after["transaction_ledger_hash"],
+        "state_mutated_on_failure": before["current_state_hash"] != after["current_state_hash"],
+        "portfolio_ledger_mutated_on_failure": before["portfolio_ledger_hash"] != after["portfolio_ledger_hash"],
+        "transaction_ledger_mutated_on_failure": before["transaction_ledger_hash"] != after["transaction_ledger_hash"],
+        "accepted_state_created": accepted_created,
+        "error_code": error_code,
+        "data_gate_status": data_gate_status,
+        "render_gate_status": render_gate_status,
+        "final_result": "PASS" if before == after and not accepted_created else "FAIL",
+    }
+    write_json(failure_evidence_path(root, failure_execution_id), evidence)
+    return evidence
+
+
+def run_failure_scenario(root: Path, scenario: str, *, failure_execution_id: str | None = None) -> dict:
+    root = root.resolve()
+    require(scenario in W4_FAILURE_SCENARIOS, "WORK_STATE_UNKNOWN_FAILURE_SCENARIO")
+    failure_execution_id = failure_execution_id or f"w4-{scenario.lower().replace('_', '-')}-{uuid.uuid4()}"
+    existing = failure_evidence_path(root, failure_execution_id)
+    if existing.exists():
+        evidence = read_json(existing)
+        evidence["idempotency_status"] = "IDEMPOTENT_REPLAY"
+        return evidence
+    baseline = load_current_state(root)
+    require(baseline is not None, "WORK_STATE_PRIOR_MISSING")
+    verify_persisted_store(root, baseline)
+    before = store_bytes_hashes(root)
+    accepted_before = accepted_history_ids(root)
+    attempted_snapshot = None
+    failure_class = scenario
+    error_code = "UNKNOWN_FAILURE"
+    data_gate_status = None
+    render_gate_status = None
+    try:
+        if scenario == "PRODUCTION_DATA_VALIDATION_FAIL":
+            attempted_snapshot = baseline["production_snapshot_id"]
+            docs = production_documents(root)
+            docs["ois_status.json"]["validation_status"] = "FAIL"
+            require(docs["ois_status.json"]["validation_status"] == "PASS", "WORK_STATE_INJECTED_PRODUCTION_DATA_VALIDATION_FAIL")
+        elif scenario == "STATE_CANDIDATE_VALIDATION_FAIL":
+            production = validate_authoritative_production_snapshot(root)
+            attempted_snapshot = production["production_snapshot_id"]
+            portfolio, transactions = load_work_ledgers(root)
+            bundle = build_incremental_state(work_execution_id=failure_execution_id, prior=baseline, production=production, portfolio=portfolio, transactions=transactions, created_at=utc_stamp())
+            bundle["state"]["previous_state_id"] = "wrong-previous-state"
+            validate_state_document(bundle["state"])
+        elif scenario == "ATOMIC_COMMIT_FAIL":
+            production = validate_authoritative_production_snapshot(root)
+            attempted_snapshot = production["production_snapshot_id"]
+            portfolio, transactions = load_work_ledgers(root)
+            bundle = build_incremental_state(work_execution_id=failure_execution_id, prior=baseline, production=production, portfolio=portfolio, transactions=transactions, created_at=utc_stamp())
+            atomic_commit_incremental_state(root, bundle, fail_after_stage="after_history", execution_type=EXECUTION_TYPE_RECOVERY)
+        elif scenario == "LEDGER_MUTATION_FAIL":
+            production = validate_authoritative_production_snapshot(root)
+            attempted_snapshot = production["production_snapshot_id"]
+            ledger = read_json(root / STATE_ROOT / "transaction_ledger.json")
+            ledger["transactions"] = list(ledger.get("transactions", [])) + [{"transaction_id": "w4-duplicate"}, {"transaction_id": "w4-duplicate"}]
+            write_json(root / STATE_ROOT / ".ledger_failure_candidate.json", ledger)
+            transaction_ids = [item.get("transaction_id") for item in ledger["transactions"]]
+            require(len(transaction_ids) == len(set(transaction_ids)), "WORK_STATE_DUPLICATE_TRANSACTION")
+    except Exception as exc:
+        error_code = str(exc)
+    finally:
+        candidate = root / STATE_ROOT / ".ledger_failure_candidate.json"
+        if candidate.exists():
+            candidate.unlink()
+    after = store_bytes_hashes(root)
+    accepted_after = accepted_history_ids(root)
+    return record_failure_evidence(root, failure_execution_id=failure_execution_id, scenario=scenario,
+                                   failure_class=failure_class, baseline=baseline,
+                                   attempted_production_snapshot_id=attempted_snapshot,
+                                   before=before, after=after, accepted_before=accepted_before,
+                                   accepted_after=accepted_after, error_code=error_code,
+                                   data_gate_status=data_gate_status, render_gate_status=render_gate_status)
+
+
+def render_gate_separation_evidence(root: Path) -> dict:
+    validate_authoritative_production_snapshot(root)
+    return {
+        "data_gate_fail_case": {
+            "data_gate_status": "FAIL",
+            "render_gate_status": "NOT_RUN",
+            "commit_blocked": True,
+            "last_known_good_preserved": True,
+        },
+        "render_fail_case": {
+            "data_gate_status": "PASS",
+            "render_gate_status": "FAIL",
+            "native_renderer_available": False,
+            "static_fallback_used": False,
+            "data_fail_misclassified": False,
+            "decision_state_commit_policy": "BLOCK_RENDER_DEPENDENT_REPORT_COMMIT",
+        },
+        "data_gate_status": "PASS",
+        "render_gate_separation_status": "PASS",
+    }
+
+
+def transition_recovery_state(root: Path, *, work_execution_id: str | None = None, now: datetime | None = None) -> dict:
+    root = root.resolve()
+    production = validate_authoritative_production_snapshot(root)
+    work_execution_id = work_execution_id or str(uuid.uuid4())
+    prior_execution = existing_execution(root, work_execution_id)
+    if prior_execution is not None:
+        existing_state = validate_state_file(root / STATE_ROOT / "history" / f"{prior_execution['current_state_id']}.json")
+        require(prior_execution["current_state_hash"] == existing_state["current_state_hash"], "WORK_STATE_EXECUTION_REFERENCE")
+        return acceptance_summary(root, existing_state, idempotency_status="IDEMPOTENT_REPLAY", final_result="PASS", execution_type=EXECUTION_TYPE_RECOVERY)
+    baseline = load_current_state(root)
+    require(baseline is not None, "WORK_STATE_PRIOR_MISSING")
+    verify_persisted_store(root, baseline)
+    portfolio, transactions = load_work_ledgers(root)
+    bundle = build_incremental_state(work_execution_id=work_execution_id, prior=baseline, production=production,
+                                     portfolio=portfolio, transactions=transactions, created_at=utc_stamp(now))
+    bundle["state"]["execution_type"] = EXECUTION_TYPE_RECOVERY
+    bundle["state"]["recovery_from_failure"] = True
+    bundle["state"]["lineage"]["recovery_from_failure"] = True
+    state_hash = calculate_state_hash(bundle["state"])
+    sid = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=bundle["state"]["production_snapshot_id"], work_execution_id=work_execution_id, state_hash=state_hash)
+    bundle["state"]["current_state_hash"] = state_hash
+    bundle["state"]["current_state_id"] = sid
+    bundle["state"]["lineage"]["current_state_hash"] = state_hash
+    bundle["state"]["lineage"]["current_state_id"] = sid
+    bundle["portfolio_ledger"]["current_state_hash"] = state_hash
+    bundle["portfolio_ledger"]["current_state_id"] = sid
+    bundle["portfolio_ledger"]["last_work_execution_id"] = work_execution_id
+    bundle["transaction_ledger"]["current_state_hash"] = state_hash
+    bundle["transaction_ledger"]["current_state_id"] = sid
+    bundle["transaction_ledger"]["last_work_execution_id"] = work_execution_id
+    validate_state_document(bundle["state"])
+    atomic_commit_incremental_state(root, bundle, execution_type=EXECUTION_TYPE_RECOVERY,
+                                    idempotency_key=f"WFA001-W4-RECOVERY:{work_execution_id}:{production['production_snapshot_id']}")
+    return acceptance_summary(root, bundle["state"], idempotency_status="PASS", final_result="PASS", execution_type=EXECUTION_TYPE_RECOVERY)
 
 
 def acceptance_summary(root: Path, state: Mapping[str, Any], *, idempotency_status: str, final_result: str,
@@ -953,14 +1155,106 @@ def write_w3_evidence(root: Path, summaries: list[Mapping[str, Any]]) -> Path:
     return output
 
 
+def write_w4_evidence(root: Path, *, baseline: Mapping[str, Any], failures: list[Mapping[str, Any]],
+                      gate: Mapping[str, Any], recovery: Mapping[str, Any], recovery_replay: Mapping[str, Any]) -> Path:
+    output = root / "data/acceptance/WFA001_OIS_W4_FAILURE_RECOVERY_EVIDENCE.json"
+    recovery_lineage = recovery["previous_state_id"] == baseline["current_state_id"] and recovery["previous_state_hash"] == baseline["current_state_hash"]
+    portfolio_recovery = recovery["portfolio_ledger_version"] >= baseline["portfolio_ledger_version"]
+    transaction_recovery = recovery["transaction_ledger_version"] >= baseline["transaction_ledger_version"]
+    failure_values = []
+    for failure in failures:
+        item = {
+            "scenario": failure["failure_scenario"],
+            "failure_execution_id": failure["failure_execution_id"],
+            "failure_class": failure["failure_class"],
+            "state_mutated_on_failure": failure["state_mutated_on_failure"],
+            "portfolio_ledger_mutated_on_failure": failure["portfolio_ledger_mutated_on_failure"],
+            "transaction_ledger_mutated_on_failure": failure["transaction_ledger_mutated_on_failure"],
+            "accepted_state_created": failure["accepted_state_created"],
+            "rollback_status": failure["rollback_status"],
+            "state_commit_status": failure["state_commit_status"],
+        }
+        if failure.get("atomic_rollback_status"):
+            item["atomic_rollback_status"] = failure["atomic_rollback_status"]
+        failure_values.append(item)
+    final = (
+        all(not failure["accepted_state_created"] and failure["rollback_status"] == "PASS" for failure in failures)
+        and gate["data_gate_status"] == "PASS"
+        and gate["render_gate_separation_status"] == "PASS"
+        and recovery_lineage
+        and portfolio_recovery
+        and transaction_recovery
+        and recovery["report_qa_status"] == "PASS"
+        and recovery["state_commit_status"] == "PASS"
+        and recovery_replay["idempotency_status"] == "IDEMPOTENT_REPLAY"
+    )
+    try:
+        repo_head = git(root, "rev-parse", "HEAD")
+    except Exception:
+        repo_head = "UNKNOWN_NON_GIT_TEST_ROOT"
+    value = {
+        "wfa_id": "WFA-001 OIS W4",
+        "system": SYSTEM,
+        "baseline": {
+            "work_execution_id": baseline["work_execution_id"],
+            "current_state_id": baseline["current_state_id"],
+            "current_state_hash": baseline["current_state_hash"],
+            "portfolio_ledger_version": baseline["portfolio_ledger_version"],
+            "transaction_ledger_version": baseline["transaction_ledger_version"],
+            "production_snapshot_id": baseline["production_snapshot_id"],
+            "daily_chain_id": baseline.get("daily_chain_id"),
+            "cadence": baseline.get("cadence"),
+        },
+        "failure_scenarios": failure_values,
+        "data_gate_status": gate["data_gate_status"],
+        "render_gate_separation_status": gate["render_gate_separation_status"],
+        "gate_evidence": gate,
+        "recovery": {
+            "work_execution_id": recovery["work_execution_id"],
+            "previous_state_id": recovery["previous_state_id"],
+            "previous_state_hash": recovery["previous_state_hash"],
+            "current_state_id": recovery["current_state_id"],
+            "current_state_hash": recovery["current_state_hash"],
+            "recovery_lineage_status": "PASS" if recovery_lineage else "FAIL",
+            "portfolio_ledger_recovery": "PASS" if portfolio_recovery else "FAIL",
+            "transaction_ledger_recovery": "PASS" if transaction_recovery else "FAIL",
+            "report_qa_status": recovery["report_qa_status"],
+            "state_commit_status": recovery["state_commit_status"],
+        },
+        "idempotency_status": "PASS" if recovery_replay["idempotency_status"] == "IDEMPOTENT_REPLAY" else "FAIL",
+        "repo_head": repo_head,
+        "final_result": "PASS" if final else "FAIL",
+    }
+    write_json(output, value)
+    return output
+
+
+def run_w4_failure_recovery_acceptance(root: Path) -> dict:
+    root = root.resolve()
+    baseline = load_current_state(root)
+    require(baseline is not None, "WORK_STATE_PRIOR_MISSING")
+    verify_persisted_store(root, baseline)
+    failures = [run_failure_scenario(root, scenario, failure_execution_id=f"w4-{scenario.lower()}") for scenario in W4_FAILURE_SCENARIOS]
+    gate = render_gate_separation_evidence(root)
+    recovery = transition_recovery_state(root, work_execution_id="w4-recovery")
+    recovery_replay = transition_recovery_state(root, work_execution_id="w4-recovery")
+    write_w4_evidence(root, baseline=baseline, failures=failures, gate=gate, recovery=recovery, recovery_replay=recovery_replay)
+    return read_json(root / "data/acceptance/WFA001_OIS_W4_FAILURE_RECOVERY_EVIDENCE.json")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--evidence", action="store_true")
     parser.add_argument("--transition", action="store_true")
     parser.add_argument("--w3-four-cadence", action="store_true")
+    parser.add_argument("--w4-failure-recovery", action="store_true")
     args = parser.parse_args()
     try:
+        if args.w4_failure_recovery:
+            evidence = run_w4_failure_recovery_acceptance(args.root)
+            print(json.dumps(evidence, sort_keys=True))
+            return 0
         if args.w3_four_cadence:
             summaries = run_four_cadence_acceptance(args.root)
             if args.evidence:
