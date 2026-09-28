@@ -1,5 +1,5 @@
 {
-  "commit_sha": "d5dca19bd6b647b40507f1fd87d3773a67e7d028",
+  "commit_sha": "a3322d6926b3b5d9257dfc576954d6018d60d561",
   "commodities": {
     "brent": [
       {
@@ -10283,16 +10283,16 @@
   "data_as_of": "2026-09-25",
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-28T12:00:38Z",
+  "generated_at": "2026-09-28T12:55:36Z",
   "lineage": {
     "approved_revision_count": 0,
     "approved_revisions": [],
-    "commit_sha": "d5dca19bd6b647b40507f1fd87d3773a67e7d028",
+    "commit_sha": "a3322d6926b3b5d9257dfc576954d6018d60d561",
     "historical_revision_recovery": "NOT_APPLICABLE",
     "migration_from_legacy": false,
     "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
     "revision_id": null,
-    "run_id": "36418817056",
+    "run_id": "36424742904",
     "source_as_of": "2026-09-25"
   },
   "missing_fields": [],
@@ -10303,7 +10303,7 @@
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 1028,
-  "run_id": "36418817056",
+  "run_id": "36424742904",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-HISTORY-1.0",
   "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
