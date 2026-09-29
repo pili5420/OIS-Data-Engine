@@ -3,36 +3,29 @@
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 89.31
+      "trailing_20d_support": 90.49
     },
     "momentum": {
-      "close_minus_20d_close": 14.620003,
-      "macd_histogram": -0.264333,
-      "rsi14": 58.529653
+      "close_minus_20d_close": 15.970001,
+      "macd_histogram": -0.255286,
+      "rsi14": 59.796207
     },
     "resistance": 108.75,
-    "rows": 514,
+    "rows": 515,
     "source": "yahoo_chart",
-    "source_date": "2026-09-25",
-    "support": 89.31,
+    "source_date": "2026-09-28",
+    "support": 90.49,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 100.789499,
+      "close_above_ma20": 101.587999,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"
   },
-  "commit_sha": "1194694d29a2c20636fd2805a344bf94dd9d767a",
-  "data_as_of": "2026-09-25",
+  "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
+  "data_as_of": "2026-09-28",
   "datasets": {
     "brent_macd": [
-      {
-        "date": "2025-09-29",
-        "dea": 0.068999,
-        "dif": 0.307936,
-        "histogram": 0.238937,
-        "zero": 0
-      },
       {
         "date": "2025-09-30",
         "dea": 0.093948,
@@ -1775,16 +1768,16 @@
         "dif": 3.43502,
         "histogram": -0.264333,
         "zero": 0
+      },
+      {
+        "date": "2026-09-28",
+        "dea": 3.635532,
+        "dif": 3.380246,
+        "histogram": -0.255286,
+        "zero": 0
       }
     ],
     "brent_price_structure": [
-      {
-        "date": "2025-09-29",
-        "ma120": 67.312417,
-        "ma20": 67.574999,
-        "ma60": 68.173333,
-        "price": 67.970001
-      },
       {
         "date": "2025-09-30",
         "ma120": 67.32525,
@@ -3527,16 +3520,16 @@
         "ma20": 100.789499,
         "ma60": 91.221333,
         "price": 104.32
+      },
+      {
+        "date": "2026-09-28",
+        "ma120": 93.595667,
+        "ma20": 101.587999,
+        "ma60": 91.779333,
+        "price": 105.279999
       }
     ],
     "brent_rsi": [
-      {
-        "date": "2025-09-29",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 50.511892,
-        "upper70": 70
-      },
       {
         "date": "2025-09-30",
         "lower30": 30,
@@ -5279,16 +5272,16 @@
         "middle50": 50,
         "rsi14": 58.529653,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-28",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 59.796207,
+        "upper70": 70
       }
     ],
     "wti_macd": [
-      {
-        "date": "2025-09-29",
-        "dea": -0.167521,
-        "dif": 0.049678,
-        "histogram": 0.217199,
-        "zero": 0
-      },
       {
         "date": "2025-09-30",
         "dea": -0.150427,
@@ -7031,16 +7024,16 @@
         "dif": 2.362326,
         "histogram": -1.19034,
         "zero": 0
+      },
+      {
+        "date": "2026-09-28",
+        "dea": 3.231687,
+        "dif": 1.947773,
+        "histogram": -1.283915,
+        "zero": 0
       }
     ],
     "wti_price_structure": [
-      {
-        "date": "2025-09-29",
-        "ma120": 64.319417,
-        "ma20": 63.592,
-        "ma60": 64.928166,
-        "price": 63.450001
-      },
       {
         "date": "2025-09-30",
         "ma120": 64.319583,
@@ -8783,16 +8776,16 @@
         "ma20": 95.309502,
         "ma60": 85.713334,
         "price": 92.410004
+      },
+      {
+        "date": "2026-09-28",
+        "ma120": 88.45075,
+        "ma20": 95.769501,
+        "ma60": 86.111834,
+        "price": 92.599998
       }
     ],
     "wti_rsi": [
-      {
-        "date": "2025-09-29",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 47.865369,
-        "upper70": 70
-      },
       {
         "date": "2025-09-30",
         "lower30": 30,
@@ -10535,68 +10528,104 @@
         "middle50": 50,
         "rsi14": 48.894106,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-28",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 49.225495,
+        "upper70": 70
       }
     ]
   },
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-28T22:49:34Z",
+  "generated_at": "2026-09-29T13:47:39Z",
   "latest_complete_source_date": {
-    "brent": "2026-09-25",
-    "wti": "2026-09-25"
+    "brent": "2026-09-28",
+    "wti": "2026-09-28"
   },
   "lineage": {
-    "approved_revision_count": 0,
-    "approved_revisions": [],
-    "commit_sha": "1194694d29a2c20636fd2805a344bf94dd9d767a",
-    "historical_revision_recovery": "NOT_APPLICABLE",
+    "approved_revision_count": 2,
+    "approved_revisions": [
+      {
+        "after_hash": "fbc020bb6fd18beabcda971f936a9bb5eb406ff7e8222b0bd703e6c1b0882255",
+        "approval_status": "APPROVED",
+        "before_hash": "16d19ba6298417ae3dd7625edd8026976ba72d2cb89b6515a60ecbb274f5b3a3",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "wti",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 WTI futures after previously published production snapshot.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
+      },
+      {
+        "after_hash": "ff76738f09762f6ccffb801164c93241eb320d098f845021e49968b4aeea7b9d",
+        "approval_status": "APPROVED",
+        "before_hash": "fb383fa05911639bdcb130ce584b1bd37a231c280c7cf4e6c80f9e98198ec03b",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 Brent futures after previously published production snapshot.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
+      }
+    ],
+    "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
+    "historical_revision_recovery": "PASS",
     "migration_from_legacy": false,
-    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
-    "revision_id": null,
-    "run_id": "36494391939",
-    "source_as_of": "2026-09-25"
+    "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+    "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+    "run_id": "36577395988",
+    "source_as_of": "2026-09-28"
   },
   "missing_fields": [],
-  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
   "published": true,
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 250,
-  "run_id": "36494391939",
+  "run_id": "36577395988",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-CHART-1.0",
-  "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
   "source": {
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
-  "source_as_of": "2026-09-25",
+  "source_as_of": "2026-09-28",
   "source_timestamp": {
-    "brent": "2026-09-25T04:00:00Z",
-    "wti": "2026-09-25T04:00:00Z"
+    "brent": "2026-09-28T04:00:00Z",
+    "wti": "2026-09-28T04:00:00Z"
   },
   "validation_status": "PASS",
   "wti": {
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 83.4
+      "trailing_20d_support": 85.76
     },
     "momentum": {
-      "close_minus_20d_close": 8.880005,
-      "macd_histogram": -1.19034,
-      "rsi14": 48.894106
+      "close_minus_20d_close": 9.199997,
+      "macd_histogram": -1.283915,
+      "rsi14": 49.225495
     },
     "resistance": 105.83,
-    "rows": 514,
+    "rows": 515,
     "source": "yahoo_chart",
-    "source_date": "2026-09-25",
-    "support": 83.4,
+    "source_date": "2026-09-28",
+    "support": 85.76,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 95.309502,
+      "close_above_ma20": 95.769501,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"

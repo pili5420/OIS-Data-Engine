@@ -32,10 +32,10 @@
       "validation_status": "PASS",
       "verification_source": "ICE Brent futures expiry / settlement calendar"
     },
-    "rows": 514,
+    "rows": 515,
     "source": "yahoo_chart",
-    "source_date": "2026-09-25",
-    "unique_dates": 514,
+    "source_date": "2026-09-28",
+    "unique_dates": 515,
     "validation_status": "PASS"
   },
   "WTI": {
@@ -71,15 +71,15 @@
       "validation_status": "PASS",
       "verification_source": "CME settlement / contract calendar"
     },
-    "rows": 514,
+    "rows": 515,
     "source": "yahoo_chart",
-    "source_date": "2026-09-25",
-    "unique_dates": 514,
+    "source_date": "2026-09-28",
+    "unique_dates": 515,
     "validation_status": "PASS"
   },
   "bootstrap_revised_rows": {
-    "brent": 0,
-    "wti": 0
+    "brent": 1,
+    "wti": 1
   },
   "chart_payload_schema": "PASS",
   "checks": {
@@ -95,46 +95,75 @@
     "trading_date": "PASS",
     "type": "PASS"
   },
-  "commit_sha": "1194694d29a2c20636fd2805a344bf94dd9d767a",
-  "data_as_of": "2026-09-25",
+  "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
+  "data_as_of": "2026-09-28",
   "duplicate_status": "PASS",
   "failure_reason": null,
   "freshness_status": "PASS",
-  "generated_at": "2026-09-28T22:49:34Z",
-  "last_attempt": "2026-09-28T22:49:34Z",
-  "last_successful_update": "2026-09-28T22:49:34Z",
+  "generated_at": "2026-09-29T13:47:39Z",
+  "last_attempt": "2026-09-29T13:47:39Z",
+  "last_successful_update": "2026-09-29T13:47:39Z",
   "lineage": {
-    "approved_revision_count": 0,
-    "approved_revisions": [],
-    "commit_sha": "1194694d29a2c20636fd2805a344bf94dd9d767a",
-    "historical_revision_recovery": "NOT_APPLICABLE",
+    "approved_revision_count": 2,
+    "approved_revisions": [
+      {
+        "after_hash": "fbc020bb6fd18beabcda971f936a9bb5eb406ff7e8222b0bd703e6c1b0882255",
+        "approval_status": "APPROVED",
+        "before_hash": "16d19ba6298417ae3dd7625edd8026976ba72d2cb89b6515a60ecbb274f5b3a3",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "wti",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 WTI futures after previously published production snapshot.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
+      },
+      {
+        "after_hash": "ff76738f09762f6ccffb801164c93241eb320d098f845021e49968b4aeea7b9d",
+        "approval_status": "APPROVED",
+        "before_hash": "fb383fa05911639bdcb130ce584b1bd37a231c280c7cf4e6c80f9e98198ec03b",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+        "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 Brent futures after previously published production snapshot.",
+        "source_provenance": "yahoo_chart",
+        "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
+      }
+    ],
+    "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
+    "historical_revision_recovery": "PASS",
     "migration_from_legacy": false,
-    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
-    "revision_id": null,
-    "run_id": "36494391939",
-    "source_as_of": "2026-09-25"
+    "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+    "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+    "run_id": "36577395988",
+    "source_as_of": "2026-09-28"
   },
   "missing_fields": [],
   "overall_validation": "PASS",
-  "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
   "published": true,
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 2,
-  "run_id": "36494391939",
+  "run_id": "36577395988",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-VALIDATION-1.0",
-  "snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+  "snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
   "source": {
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
-  "source_as_of": "2026-09-25",
+  "source_as_of": "2026-09-28",
   "source_timestamp": {
-    "brent": "2026-09-25T04:00:00Z",
-    "wti": "2026-09-25T04:00:00Z"
+    "brent": "2026-09-28T04:00:00Z",
+    "wti": "2026-09-28T04:00:00Z"
   },
   "validation_status": "PASS"
 }
