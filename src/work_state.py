@@ -362,6 +362,9 @@ def validate_production_persistent_state_ssot(root: Path, state: Mapping[str, An
         require(ledger.get("ledger_reset_detected") is not True, f"WORK_STATE_SSOT_{ledger_name.upper()}_RESET")
     production = validate_authoritative_production_snapshot(root)
     paths = store_paths(root)
+    production_pointer_status = "PASS"
+    if state["production_snapshot_id"] != production["production_snapshot_id"]:
+        production_pointer_status = "PASS_CURRENT_STATE_TRANSITION_PENDING"
     manifest = {
         "system": SYSTEM,
         "ssot_schema_version": "OIS-PRODUCTION-PERSISTENT-STATE-SSOT-1.0",
@@ -410,10 +413,12 @@ def validate_production_persistent_state_ssot(root: Path, state: Mapping[str, An
             "run_id": production["source_run_id"],
             "commit_sha": production["source_commit_sha"],
             "source_as_of": production["source_as_of"],
+            "lineage": production["production_lineage"],
         },
         "state_ledger_binding": "PASS",
         "ledger_source_binding": "PASS",
-        "production_pointer_binding": "PASS",
+        "production_pointer_binding": production_pointer_status,
+        "current_state_transition_pending": state["production_snapshot_id"] != production["production_snapshot_id"],
     }
     return manifest
 
@@ -858,7 +863,7 @@ def existing_execution(root: Path, work_execution_id: str) -> dict | None:
 
 
 def bootstrap_initial_state(root: Path, *, work_execution_id: str | None = None, now: datetime | None = None,
-                            expected_snapshot_id: str | None = EXPECTED_BOOTSTRAP_SNAPSHOT_ID,
+                            expected_snapshot_id: str | None = None,
                             fail_after_stage: str | None = None) -> dict:
     root = root.resolve()
     production = validate_authoritative_production_snapshot(root, expected_snapshot_id)

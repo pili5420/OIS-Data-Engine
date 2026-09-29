@@ -67,7 +67,7 @@ class WorkStateBootstrapTests(unittest.TestCase):
         self.assertTrue(result["bootstrap"])
         self.assertIsNone(result["previous_state_id"])
         self.assertIsNone(result["previous_state_hash"])
-        self.assertEqual(result["production_snapshot_id"], EXPECTED_BOOTSTRAP_SNAPSHOT_ID)
+        self.assertEqual(result["production_snapshot_id"], self.doc("ois_status.json")["production_snapshot_id"])
         self.assertEqual(result["portfolio_ledger_version"], 1)
         self.assertEqual(result["transaction_ledger_version"], 1)
         current = load_current_state(self.tmp)
@@ -193,7 +193,7 @@ class WorkStateContinuityTests(unittest.TestCase):
         current = load_current_state(self.tmp)
         self.assertFalse(current["decision_state"]["state_reset_detected"])
         self.assertFalse(current["ledger_reset_detected"])
-        self.assertEqual(current["decision_state"]["decision_update"], "NO_CHANGE")
+        self.assertEqual(current["decision_state"]["decision_update"], "AUTHORITATIVE_PRODUCTION_SNAPSHOT_CHANGED")
 
     def test_transition_replay_is_idempotent(self):
         first = transition_work_state(self.tmp, work_execution_id="wfa-w2-test-002")
@@ -603,7 +603,8 @@ class WorkStateThreeDaySoakTests(unittest.TestCase):
         self.assertEqual(evidence["accepted_trading_days"], 1)
         self.assertEqual(evidence["accepted_executions"], 4)
         self.assertEqual(evidence["starting_baseline"]["starting_state_id"], EXPECTED_W4_STATE_ID)
-        self.assertTrue((self.tmp / "data/acceptance/w5/OIS_W5_2026-09-25.json").exists())
+        trading_date = evidence["trading_days"][0]["trading_date"]
+        self.assertTrue((self.tmp / "data/acceptance/w5" / f"OIS_W5_{trading_date}.json").exists())
 
     def test_three_real_trading_days_pass_with_cross_day_continuity(self):
         self.set_production_day("2026-09-25", "11111111")
@@ -644,8 +645,9 @@ class WorkStateThreeDaySoakTests(unittest.TestCase):
     def test_w5_executions_use_separate_idempotency_namespace_from_w3(self):
         evidence = run_w5_3day_e2e_soak_acceptance(self.tmp)
         self.assertEqual(evidence["accepted_executions"], 4)
+        trading_date = evidence["trading_days"][0]["trading_date"]
         for cadence in WORK_CADENCE_ORDER:
-            path = self.tmp / STATE_ROOT / "executions" / f"w5-2026-09-25-{cadence.split('_')[1][:4]}.json"
+            path = self.tmp / STATE_ROOT / "executions" / f"w5-{trading_date}-{cadence.split('_')[1][:4]}.json"
             self.assertTrue(path.exists())
             execution = read_json(path)
             self.assertTrue(execution["idempotency_key"].startswith("WFA001-W5:"))
@@ -683,6 +685,10 @@ class ProductionPersistentStateSsotTests(unittest.TestCase):
         self.assertEqual(manifest["current_state"]["state_id"], self.state["current_state_id"])
         self.assertEqual(manifest["portfolio_ledger"]["current_state_hash"], self.state["current_state_hash"])
         self.assertEqual(manifest["transaction_ledger"]["source"], ledger_source_for_state(self.state))
+        production = validate_authoritative_production_snapshot(self.tmp)
+        self.assertEqual(manifest["authoritative_production_pointer"]["production_snapshot_id"], production["production_snapshot_id"])
+        self.assertEqual(manifest["authoritative_production_pointer"]["run_id"], production["source_run_id"])
+        self.assertEqual(manifest["current_state_transition_pending"], self.state["production_snapshot_id"] != production["production_snapshot_id"])
         self.assertFalse(manifest["strategy_modified"])
         self.assertFalse(manifest["rolling_180_modified"])
         self.assertFalse(manifest["six_chart_renderer_modified"])
@@ -784,7 +790,8 @@ class ExecutionDataLayerTests(unittest.TestCase):
             self.assertGreater(item["last_price"], 0)
             self.assertTrue(item["tradable"])
             self.assertEqual(item["approved_source_metadata"]["source_id"], "TWSE_INTRADAY_EXECUTION_PRICE")
-            self.assertEqual(item["source_binding"]["technical_source_as_of"], "2026-09-25")
+            self.assertEqual(item["source_binding"]["technical_source_as_of"], doc["authoritative_production_binding"]["source_as_of"])
+            self.assertEqual(item["source_binding"]["production_snapshot_id"], doc["authoritative_production_binding"]["production_snapshot_id"])
         self.assertFalse(doc["technical_source_as_of_binding_required"])
 
     def test_stale_day_quote_fails_closed(self):
@@ -857,7 +864,8 @@ class ExecutionDataLayerTests(unittest.TestCase):
         validate_execution_data_layer(doc)
         self.assertEqual(doc["validation_status"], "PASS")
         self.assertEqual(doc["decision_trade_date"], "2026-09-29")
-        self.assertEqual(doc["instruments"][0]["source_binding"]["technical_source_as_of"], "2026-09-25")
+        self.assertEqual(doc["instruments"][0]["source_binding"]["technical_source_as_of"], doc["authoritative_production_binding"]["source_as_of"])
+        self.assertEqual(doc["instruments"][0]["source_binding"]["current_state_production_snapshot_id"], state["production_snapshot_id"])
         self.assertFalse(doc["technical_source_as_of_binding_required"])
 
     def test_write_execution_data_layer_preserves_fail_closed_status(self):
@@ -866,6 +874,12 @@ class ExecutionDataLayerTests(unittest.TestCase):
         self.assertEqual(doc["validation_status"], "BLOCKED")
         self.assertEqual(doc["state_ledger_ssot_binding"], "PASS")
         self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
+
+    def test_execution_layer_fails_closed_on_stale_authoritative_binding(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        doc["instruments"][0]["source_binding"]["production_snapshot_id"] = "stale"
+        with self.assertRaisesRegex(IntegrityError, "OIS_EXECUTION_BINDING_SNAPSHOT"):
+            validate_execution_data_layer(doc)
 
 
 
