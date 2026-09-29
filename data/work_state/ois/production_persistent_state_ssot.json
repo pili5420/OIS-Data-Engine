@@ -1,53 +1,24 @@
 {
   "authoritative_production_pointer": {
-    "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
+    "commit_sha": "4f9fe9a595ae1d3e57603fcb8550eabf3aba66ff",
     "lineage": {
-      "approved_revision_count": 2,
-      "approved_revisions": [
-        {
-          "after_hash": "fbc020bb6fd18beabcda971f936a9bb5eb406ff7e8222b0bd703e6c1b0882255",
-          "approval_status": "APPROVED",
-          "before_hash": "16d19ba6298417ae3dd7625edd8026976ba72d2cb89b6515a60ecbb274f5b3a3",
-          "date": "2026-09-25",
-          "fields": [
-            "volume"
-          ],
-          "instrument": "wti",
-          "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
-          "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 WTI futures after previously published production snapshot.",
-          "source_provenance": "yahoo_chart",
-          "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
-        },
-        {
-          "after_hash": "ff76738f09762f6ccffb801164c93241eb320d098f845021e49968b4aeea7b9d",
-          "approval_status": "APPROVED",
-          "before_hash": "fb383fa05911639bdcb130ce584b1bd37a231c280c7cf4e6c80f9e98198ec03b",
-          "date": "2026-09-25",
-          "fields": [
-            "volume"
-          ],
-          "instrument": "brent",
-          "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
-          "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 Brent futures after previously published production snapshot.",
-          "source_provenance": "yahoo_chart",
-          "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
-        }
-      ],
-      "commit_sha": "c3f64ac2f9260f7637219ce149f31582bd546f34",
-      "historical_revision_recovery": "PASS",
+      "approved_revision_count": 0,
+      "approved_revisions": [],
+      "commit_sha": "4f9fe9a595ae1d3e57603fcb8550eabf3aba66ff",
+      "historical_revision_recovery": "NOT_APPLICABLE",
       "migration_from_legacy": false,
       "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
-      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
-      "run_id": "36577395988",
+      "revision_id": null,
+      "run_id": "36580044631",
       "source_as_of": "2026-09-28"
     },
     "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
-    "run_id": "36577395988",
+    "run_id": "36580044631",
     "source_as_of": "2026-09-28"
   },
   "current_state": {
     "execution_type": "THREE_DAY_E2E_SOAK_ACCEPTANCE",
-    "file_sha256": "9d8c4179845d1e95013a76eefe57effe02c54cdc24d9e93ec417990f5bc809d7",
+    "file_sha256": "80cd9d3ae3acb03d3f7634134eb8d4000f9380527dfd8502949f8205071c88d8",
     "path": "data/work_state/ois/current_state.json",
     "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
     "source_as_of": "2026-09-25",
@@ -63,7 +34,7 @@
     "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
     "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
     "event_count": 0,
-    "file_sha256": "3406a9444ec0f333913dbe24eafe7d78747f5745e6f5c29719b4a38bfac6bb35",
+    "file_sha256": "3e6f1b433847e93a5411a13937976dfe375bf0a6f5bce1a8d0aa27050d477610",
     "last_work_execution_id": "w5-2026-09-25-1935",
     "ledger_reset_detected": false,
     "ledger_schema_version": "OIS-WORK-PORTFOLIO-LEDGER-1.0",
@@ -86,7 +57,7 @@
   "transaction_ledger": {
     "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
     "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
-    "file_sha256": "a3cdba18bc4a9f7a9e282ceb9482a5e01a8dd4bd55de3a097282144daddde800",
+    "file_sha256": "324b8fa6ac71af546c6f1e8891006d9876309e8c02df29122de77c307df98c08",
     "last_work_execution_id": "w5-2026-09-25-1935",
     "ledger_reset_detected": false,
     "ledger_schema_version": "OIS-WORK-TRANSACTION-LEDGER-1.0",
