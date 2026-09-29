@@ -22,7 +22,7 @@
     },
     "validation": "PASS"
   },
-  "commit_sha": "4f9fe9a595ae1d3e57603fcb8550eabf3aba66ff",
+  "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
   "data_as_of": "2026-09-28",
   "datasets": {
     "brent_macd": [
@@ -10540,7 +10540,7 @@
   },
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-29T14:07:58Z",
+  "generated_at": "2026-09-29T14:17:03Z",
   "latest_complete_source_date": {
     "brent": "2026-09-28",
     "wti": "2026-09-28"
@@ -10548,12 +10548,12 @@
   "lineage": {
     "approved_revision_count": 0,
     "approved_revisions": [],
-    "commit_sha": "4f9fe9a595ae1d3e57603fcb8550eabf3aba66ff",
+    "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
     "historical_revision_recovery": "NOT_APPLICABLE",
     "migration_from_legacy": false,
     "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
     "revision_id": null,
-    "run_id": "36580044631",
+    "run_id": "36580950486",
     "source_as_of": "2026-09-28"
   },
   "missing_fields": [],
@@ -10564,7 +10564,7 @@
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 250,
-  "run_id": "36580044631",
+  "run_id": "36580950486",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-CHART-1.0",
   "snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
