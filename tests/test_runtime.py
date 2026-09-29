@@ -22,7 +22,7 @@ from src.indicators.technical import build_indicators
 from src.runtime.engine import (CSV_FIELDS, STATE_PATH, build_candidate, encoded, git, load_previous,
                                 merge_history, validate_bundle, validate_legacy_bundle, write_json)
 from src.runtime.publish import publish
-from src.runtime.revisions import REVISION_ID, match_approved_revision, row_hash
+from src.runtime.revisions import REVISION_ID, match_approved_revision, revision_id_for_date, row_hash
 from src.runtime.source import IntegrityError, TransientError, get_json, latest_completed, normalize, schedule, stamp
 from src.runtime.validation import FIELDS, PUBLIC_FILES, read_json, validate_history, validate_indicators
 
@@ -124,6 +124,33 @@ class RuntimeUnitTests(unittest.TestCase):
         merged, revisions, accepted_rows = merge_history([old_row], [incoming], True, instrument="wti", revision_evidence=evidence)
         self.assertEqual(revisions, 1)
         self.assertEqual(accepted_rows[0]["after_hash"], row_hash(incoming))
+        self.assertEqual(merged[0], incoming)
+
+    def test_revision_matcher_accepts_dynamic_revision_id_date(self):
+        old_row = copy.deepcopy(self.rows[-2])
+        old_row["date"] = "2026-09-25"
+        old_row["source_timestamp"] = "2026-09-25T04:00:00Z"
+        incoming = copy.deepcopy(old_row)
+        incoming["volume"] = float(incoming["volume"]) + 29
+        evidence = {"revisions": [{
+            "revision_id": revision_id_for_date(old_row["date"]),
+            "source_provenance": "yahoo_chart",
+            "upstream_revision_timestamp": "2026-09-29T13:25:36Z",
+            "approval_status": "APPROVED",
+            "revision_reason": "dynamic upstream correction",
+            "before_hash": row_hash(old_row),
+            "after_hash": row_hash(incoming),
+            "affected_record": {"dataset": "historical_prices", "instrument": "brent", "date": old_row["date"],
+                                "fields": ["volume"],
+                                "old_values": {field: old_row[field] for field in FIELDS},
+                                "corrected_values": {field: incoming[field] for field in FIELDS}},
+        }]}
+        accepted = match_approved_revision(evidence=evidence, instrument="brent", old_row=old_row, incoming_row=incoming)
+        self.assertIsNotNone(accepted)
+        self.assertEqual(accepted["revision_id"], "HISTORICAL_SOURCE_REVISION:2026-09-25")
+        merged, revisions, accepted_rows = merge_history([old_row], [incoming], True, instrument="brent", revision_evidence=evidence)
+        self.assertEqual(revisions, 1)
+        self.assertEqual(accepted_rows[0]["date"], "2026-09-25")
         self.assertEqual(merged[0], incoming)
 
     def test_freshness_weekend_and_six_hour_finalization(self):

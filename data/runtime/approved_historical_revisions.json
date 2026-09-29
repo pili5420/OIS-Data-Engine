@@ -1,138 +1,202 @@
 {
-  "schema_version": "OIS-HISTORICAL-REVISION-EVIDENCE-1.0",
-  "validation_status": "PASS",
   "revisions": [
     {
-      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-      "source_provenance": "yahoo_chart",
-      "upstream_revision_timestamp": "2026-09-11T04:00:00Z",
-      "approval_status": "APPROVED",
-      "approved_by": "CR-OIS-PROD-HR-001",
-      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 WTI futures OHLCV after preliminary archive snapshot.",
-      "before_hash": "c4b625c4e64a77d557bccd6dca5024414bbd31874cfb1dbcedebf6654c21ec82",
-      "after_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
       "affected_record": {
+        "corrected_values": {
+          "close": 100.05000305175781,
+          "high": 104.45999908447266,
+          "low": 98.4800033569336,
+          "open": 104.31999969482422,
+          "volume": 437382.0
+        },
         "dataset": "historical_prices",
-        "instrument": "wti",
         "date": "2026-09-11",
         "fields": [
           "low",
           "close",
           "volume"
         ],
+        "instrument": "wti",
         "old_values": {
-          "open": 104.31999969482422,
+          "close": 99.12999725341797,
           "high": 104.45999908447266,
           "low": 98.93000030517578,
-          "close": 99.12999725341797,
-          "volume": 137938.0
-        },
-        "corrected_values": {
           "open": 104.31999969482422,
-          "high": 104.45999908447266,
-          "low": 98.4800033569336,
-          "close": 100.05000305175781,
-          "volume": 437382.0
+          "volume": 137938.0
         }
-      }
-    },
-    {
-      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-      "source_provenance": "yahoo_chart",
-      "upstream_revision_timestamp": "2026-09-11T04:00:00Z",
+      },
+      "after_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
       "approval_status": "APPROVED",
       "approved_by": "CR-OIS-PROD-HR-001",
-      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 Brent futures OHLCV after preliminary archive snapshot.",
-      "before_hash": "e6c79625d21201591139a22089fa2d9ceec5d67e678e3bc8102ec40928976b2f",
-      "after_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+      "before_hash": "c4b625c4e64a77d557bccd6dca5024414bbd31874cfb1dbcedebf6654c21ec82",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 WTI futures OHLCV after preliminary archive snapshot.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-11T04:00:00Z"
+    },
+    {
       "affected_record": {
+        "corrected_values": {
+          "close": 104.61000061035156,
+          "high": 110.19000244140625,
+          "low": 103.4800033569336,
+          "open": 109.16000366210938,
+          "volume": 72538.0
+        },
         "dataset": "historical_prices",
-        "instrument": "brent",
         "date": "2026-09-11",
         "fields": [
           "low",
           "close",
           "volume"
         ],
+        "instrument": "brent",
         "old_values": {
-          "open": 109.16000366210938,
+          "close": 103.68000030517578,
           "high": 110.19000244140625,
           "low": 103.55999755859375,
-          "close": 103.68000030517578,
+          "open": 109.16000366210938,
           "volume": 23411.0
-        },
-        "corrected_values": {
-          "open": 109.16000366210938,
-          "high": 110.19000244140625,
-          "low": 103.4800033569336,
-          "close": 104.61000061035156,
-          "volume": 72538.0
         }
-      }
+      },
+      "after_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-HR-001",
+      "before_hash": "e6c79625d21201591139a22089fa2d9ceec5d67e678e3bc8102ec40928976b2f",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "revision_reason": "Yahoo Finance upstream historical correction for completed 2026-09-11 Brent futures OHLCV after preliminary archive snapshot.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-11T04:00:00Z"
     },
     {
-      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-      "source_provenance": "yahoo_chart",
-      "upstream_revision_timestamp": "2026-09-28T09:05:53Z",
-      "approval_status": "APPROVED",
-      "approved_by": "CR-OIS-PROD-MIG-001",
-      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 WTI futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
-      "before_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
-      "after_hash": "06e9f84342c7914f39a68057b2249dcbeb2bf69465ff532ffd81f9909cb428d2",
       "affected_record": {
-        "dataset": "historical_prices",
-        "instrument": "wti",
-        "date": "2026-09-11",
-        "fields": [
-          "volume"
-        ],
-        "old_values": {
-          "open": 104.31999969482422,
-          "high": 104.45999908447266,
-          "low": 98.4800033569336,
-          "close": 100.05000305175781,
-          "volume": 437382.0
-        },
         "corrected_values": {
-          "open": 104.31999969482422,
+          "close": 100.05000305175781,
           "high": 104.45999908447266,
           "low": 98.4800033569336,
-          "close": 100.05000305175781,
+          "open": 104.31999969482422,
           "volume": 399142.0
-        }
-      }
-    },
-    {
-      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
-      "source_provenance": "yahoo_chart",
-      "upstream_revision_timestamp": "2026-09-28T09:05:53Z",
-      "approval_status": "APPROVED",
-      "approved_by": "CR-OIS-PROD-MIG-001",
-      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 Brent futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
-      "before_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
-      "after_hash": "f8d9f1adf4c3b0c4cd0b9d561ca83d083266b31fffed7cd31106d9fc765a374d",
-      "affected_record": {
+        },
         "dataset": "historical_prices",
-        "instrument": "brent",
         "date": "2026-09-11",
         "fields": [
           "volume"
         ],
+        "instrument": "wti",
         "old_values": {
-          "open": 109.16000366210938,
-          "high": 110.19000244140625,
-          "low": 103.4800033569336,
-          "close": 104.61000061035156,
-          "volume": 72538.0
-        },
-        "corrected_values": {
-          "open": 109.16000366210938,
-          "high": 110.19000244140625,
-          "low": 103.4800033569336,
-          "close": 104.61000061035156,
-          "volume": 61285.0
+          "close": 100.05000305175781,
+          "high": 104.45999908447266,
+          "low": 98.4800033569336,
+          "open": 104.31999969482422,
+          "volume": 437382.0
         }
-      }
+      },
+      "after_hash": "06e9f84342c7914f39a68057b2249dcbeb2bf69465ff532ffd81f9909cb428d2",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-MIG-001",
+      "before_hash": "e5e47d80a77e7ced4d43870dfe5c57e499a441139cff370631a733fbba62ce32",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 WTI futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+    },
+    {
+      "affected_record": {
+        "corrected_values": {
+          "close": 104.61000061035156,
+          "high": 110.19000244140625,
+          "low": 103.4800033569336,
+          "open": 109.16000366210938,
+          "volume": 61285.0
+        },
+        "dataset": "historical_prices",
+        "date": "2026-09-11",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "old_values": {
+          "close": 104.61000061035156,
+          "high": 110.19000244140625,
+          "low": 103.4800033569336,
+          "open": 109.16000366210938,
+          "volume": 72538.0
+        }
+      },
+      "after_hash": "f8d9f1adf4c3b0c4cd0b9d561ca83d083266b31fffed7cd31106d9fc765a374d",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-MIG-001",
+      "before_hash": "2558b1dc9ab02671bc517b71c97533726d28fdb405cec9d0e37fdc58d053a15f",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-11",
+      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-11 Brent futures after CR-OIS-PROD-HR-001 accepted close/low correction.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-28T09:05:53Z"
+    },
+    {
+      "affected_record": {
+        "corrected_values": {
+          "close": 92.41000366210938,
+          "high": 94.75,
+          "low": 91.51000213623047,
+          "open": 94.75,
+          "volume": 345783.0
+        },
+        "dataset": "historical_prices",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "wti",
+        "old_values": {
+          "close": 92.41000366210938,
+          "high": 94.75,
+          "low": 91.51000213623047,
+          "open": 94.75,
+          "volume": 410015.0
+        }
+      },
+      "after_hash": "fbc020bb6fd18beabcda971f936a9bb5eb406ff7e8222b0bd703e6c1b0882255",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-HR-20260925",
+      "before_hash": "16d19ba6298417ae3dd7625edd8026976ba72d2cb89b6515a60ecbb274f5b3a3",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 WTI futures after previously published production snapshot.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
+    },
+    {
+      "affected_record": {
+        "corrected_values": {
+          "close": 104.31999969482422,
+          "high": 106.75,
+          "low": 103.11000061035156,
+          "open": 106.5199966430664,
+          "volume": 28791.0
+        },
+        "dataset": "historical_prices",
+        "date": "2026-09-25",
+        "fields": [
+          "volume"
+        ],
+        "instrument": "brent",
+        "old_values": {
+          "close": 104.31999969482422,
+          "high": 106.75,
+          "low": 103.11000061035156,
+          "open": 106.5199966430664,
+          "volume": 57116.0
+        }
+      },
+      "after_hash": "ff76738f09762f6ccffb801164c93241eb320d098f845021e49968b4aeea7b9d",
+      "approval_status": "APPROVED",
+      "approved_by": "CR-OIS-PROD-HR-20260925",
+      "before_hash": "fb383fa05911639bdcb130ce584b1bd37a231c280c7cf4e6c80f9e98198ec03b",
+      "revision_id": "HISTORICAL_SOURCE_REVISION:2026-09-25",
+      "revision_reason": "Yahoo Finance upstream historical volume correction for completed 2026-09-25 Brent futures after previously published production snapshot.",
+      "source_provenance": "yahoo_chart",
+      "upstream_revision_timestamp": "2026-09-29T13:25:36Z"
     }
-  ]
+  ],
+  "schema_version": "OIS-HISTORICAL-REVISION-EVIDENCE-1.0",
+  "validation_status": "PASS"
 }
