@@ -26,6 +26,7 @@ EXECUTION_TYPE_RECOVERY = "FAILURE_RECOVERY_ACCEPTANCE"
 EXECUTION_TYPE_SOAK = "THREE_DAY_E2E_SOAK_ACCEPTANCE"
 STATE_VERSION = 1
 STATE_ROOT = Path("data/work_state/ois")
+PERSISTENT_STATE_SSOT_PATH = STATE_ROOT / "production_persistent_state_ssot.json"
 EXPECTED_BOOTSTRAP_SNAPSHOT_ID = "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4"
 EXPECTED_WFA_INFRA_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-2f32838b-3f3-597e4630f36cc7e8eefadb6c"
 EXPECTED_WFA_INFRA_STATE_HASH = "597e4630f36cc7e8eefadb6cb4f0e4697ccb685d292f6323d6f904fc2c1817e3"
@@ -164,13 +165,26 @@ def load_current_state(root: Path) -> dict | None:
     return state
 
 
-def build_initial_ledgers(work_execution_id: str, production: Mapping[str, Any], created_at: str) -> tuple[dict, dict]:
-    ledger_source = {
+def ledger_source_for_state(state: Mapping[str, Any]) -> dict:
+    return {
+        "production_snapshot_id": state["production_snapshot_id"],
+        "source_run_id": state["source_run_id"],
+        "source_commit_sha": state["source_commit_sha"],
+        "source_as_of": state["source_as_of"],
+    }
+
+
+def ledger_source_for_production(production: Mapping[str, Any]) -> dict:
+    return {
         "production_snapshot_id": production["production_snapshot_id"],
         "source_run_id": production["source_run_id"],
         "source_commit_sha": production["source_commit_sha"],
         "source_as_of": production["source_as_of"],
     }
+
+
+def build_initial_ledgers(work_execution_id: str, production: Mapping[str, Any], created_at: str) -> tuple[dict, dict]:
+    ledger_source = ledger_source_for_production(production)
     portfolio = {
         "system": SYSTEM,
         "ledger_schema_version": "OIS-WORK-PORTFOLIO-LEDGER-1.0",
@@ -333,6 +347,84 @@ def store_bytes_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def validate_production_persistent_state_ssot(root: Path, state: Mapping[str, Any] | None = None) -> dict:
+    root = root.resolve()
+    state = state or load_current_state(root)
+    require(state is not None, "WORK_STATE_SSOT_CURRENT_STATE_MISSING")
+    validate_state_document(state)
+    portfolio, transactions = load_work_ledgers(root)
+    expected_source = ledger_source_for_state(state)
+    ledgers = {"portfolio_ledger": portfolio, "transaction_ledger": transactions}
+    for ledger_name, ledger in ledgers.items():
+        require(ledger.get("current_state_id") == state["current_state_id"], f"WORK_STATE_SSOT_{ledger_name.upper()}_STATE_ID")
+        require(ledger.get("current_state_hash") == state["current_state_hash"], f"WORK_STATE_SSOT_{ledger_name.upper()}_STATE_HASH")
+        require(ledger.get("source") == expected_source, f"WORK_STATE_SSOT_{ledger_name.upper()}_SOURCE")
+        require(ledger.get("ledger_reset_detected") is not True, f"WORK_STATE_SSOT_{ledger_name.upper()}_RESET")
+    production = validate_authoritative_production_snapshot(root)
+    paths = store_paths(root)
+    manifest = {
+        "system": SYSTEM,
+        "ssot_schema_version": "OIS-PRODUCTION-PERSISTENT-STATE-SSOT-1.0",
+        "validation_status": "PASS",
+        "strategy_modified": False,
+        "rolling_180_modified": False,
+        "six_chart_renderer_modified": False,
+        "current_state": {
+            "path": (STATE_ROOT / "current_state.json").as_posix(),
+            "state_id": state["current_state_id"],
+            "state_hash": state["current_state_hash"],
+            "work_execution_id": state["work_execution_id"],
+            "execution_type": state.get("execution_type"),
+            "production_snapshot_id": state["production_snapshot_id"],
+            "source_run_id": state["source_run_id"],
+            "source_commit_sha": state["source_commit_sha"],
+            "source_as_of": state["source_as_of"],
+            "file_sha256": file_sha256(paths["current"]),
+        },
+        "portfolio_ledger": {
+            "path": (STATE_ROOT / "portfolio_ledger.json").as_posix(),
+            "ledger_schema_version": portfolio.get("ledger_schema_version"),
+            "ledger_version": portfolio.get("ledger_version"),
+            "current_state_id": portfolio.get("current_state_id"),
+            "current_state_hash": portfolio.get("current_state_hash"),
+            "last_work_execution_id": portfolio.get("last_work_execution_id"),
+            "source": portfolio.get("source"),
+            "event_count": len(portfolio.get("events", [])),
+            "ledger_reset_detected": portfolio.get("ledger_reset_detected", False),
+            "file_sha256": file_sha256(paths["portfolio"]),
+        },
+        "transaction_ledger": {
+            "path": (STATE_ROOT / "transaction_ledger.json").as_posix(),
+            "ledger_schema_version": transactions.get("ledger_schema_version"),
+            "ledger_version": transactions.get("ledger_version"),
+            "current_state_id": transactions.get("current_state_id"),
+            "current_state_hash": transactions.get("current_state_hash"),
+            "last_work_execution_id": transactions.get("last_work_execution_id"),
+            "source": transactions.get("source"),
+            "transaction_count": len(transactions.get("transactions", [])),
+            "ledger_reset_detected": transactions.get("ledger_reset_detected", False),
+            "file_sha256": file_sha256(paths["transaction"]),
+        },
+        "authoritative_production_pointer": {
+            "production_snapshot_id": production["production_snapshot_id"],
+            "run_id": production["source_run_id"],
+            "commit_sha": production["source_commit_sha"],
+            "source_as_of": production["source_as_of"],
+        },
+        "state_ledger_binding": "PASS",
+        "ledger_source_binding": "PASS",
+        "production_pointer_binding": "PASS",
+    }
+    return manifest
+
+
+def write_production_persistent_state_ssot(root: Path) -> Path:
+    manifest = validate_production_persistent_state_ssot(root)
+    path = root / PERSISTENT_STATE_SSOT_PATH
+    write_json(path, manifest)
+    return path
+
+
 def validate_market_trading_date(trading_date: str) -> None:
     sessions = schedule(trading_date, trading_date)
     require(trading_date in sessions, f"WORK_STATE_NON_TRADING_DATE:{trading_date}")
@@ -460,12 +552,14 @@ def build_incremental_state(*, work_execution_id: str, prior: Mapping[str, Any],
     state["state_commit_status"] = "PASS"
     next_portfolio = json.loads(json.dumps(portfolio, sort_keys=True))
     next_transactions = json.loads(json.dumps(transactions, sort_keys=True))
+    ledger_source = ledger_source_for_state(state)
     next_portfolio.update({
         "ledger_bootstrap": False,
         "ledger_reset_detected": False,
         "current_state_id": sid,
         "current_state_hash": state_hash,
         "last_work_execution_id": work_execution_id,
+        "source": ledger_source,
     })
     next_transactions.update({
         "ledger_bootstrap": False,
@@ -473,6 +567,7 @@ def build_incremental_state(*, work_execution_id: str, prior: Mapping[str, Any],
         "current_state_id": sid,
         "current_state_hash": state_hash,
         "last_work_execution_id": work_execution_id,
+        "source": ledger_source,
     })
     validate_state_document(state)
     return {"state": state, "portfolio_ledger": next_portfolio, "transaction_ledger": next_transactions}
@@ -592,6 +687,7 @@ def build_cadence_state(*, work_execution_id: str, prior: Mapping[str, Any], pro
     state["state_commit_status"] = "PASS"
     next_portfolio = json.loads(json.dumps(portfolio, sort_keys=True))
     next_transactions = json.loads(json.dumps(transactions, sort_keys=True))
+    ledger_source = ledger_source_for_state(state)
     next_portfolio.update({
         "ledger_bootstrap": False,
         "ledger_reset_detected": False,
@@ -600,6 +696,7 @@ def build_cadence_state(*, work_execution_id: str, prior: Mapping[str, Any], pro
         "last_work_execution_id": work_execution_id,
         "daily_chain_id": daily_chain_id,
         "trading_date": trading_date,
+        "source": ledger_source,
     })
     next_transactions.update({
         "ledger_bootstrap": False,
@@ -609,6 +706,7 @@ def build_cadence_state(*, work_execution_id: str, prior: Mapping[str, Any], pro
         "last_work_execution_id": work_execution_id,
         "daily_chain_id": daily_chain_id,
         "trading_date": trading_date,
+        "source": ledger_source,
     })
     validate_state_document(state)
     return {"state": state, "portfolio_ledger": next_portfolio, "transaction_ledger": next_transactions}
@@ -1524,8 +1622,13 @@ def main() -> int:
     parser.add_argument("--w3-four-cadence", action="store_true")
     parser.add_argument("--w4-failure-recovery", action="store_true")
     parser.add_argument("--w5-3day-soak", action="store_true")
+    parser.add_argument("--write-persistent-ssot", action="store_true")
     args = parser.parse_args()
     try:
+        if args.write_persistent_ssot:
+            path = write_production_persistent_state_ssot(args.root)
+            print(json.dumps(read_json(path), sort_keys=True))
+            return 0
         if args.w5_3day_soak:
             evidence = run_w5_3day_e2e_soak_acceptance(args.root)
             print(json.dumps(evidence, sort_keys=True))

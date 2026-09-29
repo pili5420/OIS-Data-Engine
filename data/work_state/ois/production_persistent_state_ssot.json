@@ -1,0 +1,63 @@
+{
+  "authoritative_production_pointer": {
+    "commit_sha": "1194694d29a2c20636fd2805a344bf94dd9d767a",
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "run_id": "36494391939",
+    "source_as_of": "2026-09-25"
+  },
+  "current_state": {
+    "execution_type": "THREE_DAY_E2E_SOAK_ACCEPTANCE",
+    "file_sha256": "80cd9d3ae3acb03d3f7634134eb8d4000f9380527dfd8502949f8205071c88d8",
+    "path": "data/work_state/ois/current_state.json",
+    "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+    "source_as_of": "2026-09-25",
+    "source_commit_sha": "db7a0823352430786ca6df2e03cad4a937efc6b0",
+    "source_run_id": "36490746612",
+    "state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
+    "state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+    "work_execution_id": "w5-2026-09-25-1935"
+  },
+  "ledger_source_binding": "PASS",
+  "portfolio_ledger": {
+    "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+    "event_count": 0,
+    "file_sha256": "3e6f1b433847e93a5411a13937976dfe375bf0a6f5bce1a8d0aa27050d477610",
+    "last_work_execution_id": "w5-2026-09-25-1935",
+    "ledger_reset_detected": false,
+    "ledger_schema_version": "OIS-WORK-PORTFOLIO-LEDGER-1.0",
+    "ledger_version": 1,
+    "path": "data/work_state/ois/portfolio_ledger.json",
+    "source": {
+      "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+      "source_as_of": "2026-09-25",
+      "source_commit_sha": "db7a0823352430786ca6df2e03cad4a937efc6b0",
+      "source_run_id": "36490746612"
+    }
+  },
+  "production_pointer_binding": "PASS",
+  "rolling_180_modified": false,
+  "six_chart_renderer_modified": false,
+  "ssot_schema_version": "OIS-PRODUCTION-PERSISTENT-STATE-SSOT-1.0",
+  "state_ledger_binding": "PASS",
+  "strategy_modified": false,
+  "system": "OIS V4.4",
+  "transaction_ledger": {
+    "current_state_hash": "52d1101215f356379f32649fc9fa4ea8efbf1002986c8bfc4f4d670c28fb86ed",
+    "current_state_id": "ois-work-state-v1-5a8145e8-4f3ed4f408d1-w5-2026-09-2-52d1101215f356379f32649f",
+    "file_sha256": "324b8fa6ac71af546c6f1e8891006d9876309e8c02df29122de77c307df98c08",
+    "last_work_execution_id": "w5-2026-09-25-1935",
+    "ledger_reset_detected": false,
+    "ledger_schema_version": "OIS-WORK-TRANSACTION-LEDGER-1.0",
+    "ledger_version": 1,
+    "path": "data/work_state/ois/transaction_ledger.json",
+    "source": {
+      "production_snapshot_id": "4f3ed4f408d10d66cc7f629f12f511b283907fc10c6b030276b36708d8d29de4",
+      "source_as_of": "2026-09-25",
+      "source_commit_sha": "db7a0823352430786ca6df2e03cad4a937efc6b0",
+      "source_run_id": "36490746612"
+    },
+    "transaction_count": 0
+  },
+  "validation_status": "PASS"
+}

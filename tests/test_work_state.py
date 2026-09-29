@@ -26,7 +26,11 @@ from src.work_state import (EXPECTED_BOOTSTRAP_SNAPSHOT_ID, EXPECTED_WFA_INFRA_E
                             write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION,
                             validate_authoritative_production_snapshot, load_work_ledgers,
                             build_incremental_state, atomic_commit_incremental_state,
-                            EXECUTION_TYPE_RECOVERY, EXECUTION_TYPE_SOAK, WORK_CADENCE_ORDER)
+                            EXECUTION_TYPE_RECOVERY, EXECUTION_TYPE_SOAK, WORK_CADENCE_ORDER,
+                            ledger_source_for_state, validate_production_persistent_state_ssot,
+                            write_production_persistent_state_ssot)
+from src.execution_layer import (REQUIRED_EXECUTION_SYMBOLS, build_execution_data_layer,
+                                 validate_execution_data_layer, write_execution_data_layer)
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_W2_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199"
@@ -646,6 +650,222 @@ class WorkStateThreeDaySoakTests(unittest.TestCase):
             execution = read_json(path)
             self.assertTrue(execution["idempotency_key"].startswith("WFA001-W5:"))
             self.assertEqual(execution["execution_type"], EXECUTION_TYPE_SOAK)
+
+
+
+class ProductionPersistentStateSsotTests(unittest.TestCase):
+    def setUp(self):
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        self.state = load_current_state(self.tmp)
+        source = ledger_source_for_state(self.state)
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["current_state_id"] = self.state["current_state_id"]
+            ledger["current_state_hash"] = self.state["current_state_hash"]
+            ledger["last_work_execution_id"] = self.state["work_execution_id"]
+            ledger["source"] = source
+            write_json(ledger_path, ledger)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_persistent_state_ssot_binds_current_state_and_ledgers(self):
+        manifest = validate_production_persistent_state_ssot(self.tmp, self.state)
+        self.assertEqual(manifest["validation_status"], "PASS")
+        self.assertEqual(manifest["current_state"]["state_id"], self.state["current_state_id"])
+        self.assertEqual(manifest["portfolio_ledger"]["current_state_hash"], self.state["current_state_hash"])
+        self.assertEqual(manifest["transaction_ledger"]["source"], ledger_source_for_state(self.state))
+        self.assertFalse(manifest["strategy_modified"])
+        self.assertFalse(manifest["rolling_180_modified"])
+        self.assertFalse(manifest["six_chart_renderer_modified"])
+
+    def test_stale_ledger_source_fails_persistent_state_ssot(self):
+        ledger_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
+        ledger = read_json(ledger_path)
+        ledger["source"]["source_run_id"] = "stale-run"
+        write_json(ledger_path, ledger)
+        with self.assertRaisesRegex(IntegrityError, "SSOT_PORTFOLIO_LEDGER_SOURCE"):
+            validate_production_persistent_state_ssot(self.tmp, self.state)
+
+    def test_write_persistent_state_ssot_manifest(self):
+        path = write_production_persistent_state_ssot(self.tmp)
+        manifest = read_json(path)
+        self.assertEqual(manifest["state_ledger_binding"], "PASS")
+        self.assertEqual(manifest["transaction_ledger"]["current_state_id"], self.state["current_state_id"])
+
+    def test_incremental_transition_updates_ledger_source_to_new_state_source(self):
+        production = validate_authoritative_production_snapshot(self.tmp)
+        production = dict(production)
+        production["source_run_id"] = "new-authoritative-run"
+        production["source_commit_sha"] = "a" * 40
+        production["production_lineage"] = dict(production["production_lineage"])
+        production["production_lineage"].update({"run_id": production["source_run_id"], "commit_sha": production["source_commit_sha"]})
+        portfolio, transactions = load_work_ledgers(self.tmp)
+        bundle = build_incremental_state(work_execution_id="ssot-transition-source", prior=self.state, production=production, portfolio=portfolio, transactions=transactions, created_at="2026-09-29T00:00:00Z")
+        expected = ledger_source_for_state(bundle["state"])
+        self.assertEqual(bundle["portfolio_ledger"]["source"], expected)
+        self.assertEqual(bundle["transaction_ledger"]["source"], expected)
+
+
+class ExecutionDataLayerTests(unittest.TestCase):
+    def setUp(self):
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        state = load_current_state(self.tmp)
+        source = ledger_source_for_state(state)
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["current_state_id"] = state["current_state_id"]
+            ledger["current_state_hash"] = state["current_state_hash"]
+            ledger["last_work_execution_id"] = state["work_execution_id"]
+            ledger["source"] = source
+            write_json(ledger_path, ledger)
+        write_production_persistent_state_ssot(self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def approved_quote(self, symbol, *, trade_date="2026-09-25", market_timestamp="2026-09-25T09:30:00+08:00", last_price=10.5, source_id="TWSE_INTRADAY_EXECUTION_PRICE", tradable=True):
+        return {
+            "symbol": symbol,
+            "trade_date": trade_date,
+            "market_timestamp": market_timestamp,
+            "last_price": last_price,
+            "tradable": tradable,
+            "source_metadata": {
+                "source_id": source_id,
+                "source_name": "Approved Taiwan intraday execution price feed",
+                "source_url": "https://approved.example.invalid/twse/intraday",
+                "retrieval_timestamp": market_timestamp,
+                "approved": True,
+            },
+        }
+
+    def quote_set(self, **overrides):
+        return {symbol: self.approved_quote(symbol, **overrides) for symbol in REQUIRED_EXECUTION_SYMBOLS}
+
+    def test_execution_layer_requires_three_target_symbols_and_fails_closed_without_source(self):
+        doc = build_execution_data_layer(self.tmp, decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(tuple(doc["required_symbols"]), REQUIRED_EXECUTION_SYMBOLS)
+        self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertFalse(doc["publishable"])
+        self.assertEqual(doc["fail_closed_reason"], "NO_SYMBOL_PASSED_EXECUTION_PRICE_GATE")
+        self.assertTrue(all(item["fallback_used"] is False for item in doc["instruments"]))
+        self.assertTrue(all("trade_date" in item and "market_timestamp" in item and "last_price" in item for item in doc["instruments"]))
+
+    def test_fresh_valid_quote_passes_execution_price_gate(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertTrue(doc["publishable"])
+        self.assertEqual(doc["pass_count"], 3)
+        for item in doc["instruments"]:
+            self.assertEqual(item["validation_status"], "PASS")
+            self.assertEqual(item["trade_date"], "2026-09-25")
+            self.assertEqual(item["decision_cadence"], "OIS_0935_OPENING")
+            self.assertEqual(item["freshness_seconds"], 300)
+            self.assertGreater(item["last_price"], 0)
+            self.assertTrue(item["tradable"])
+            self.assertEqual(item["approved_source_metadata"]["source_id"], "TWSE_INTRADAY_EXECUTION_PRICE")
+            self.assertEqual(item["source_binding"]["technical_source_as_of"], "2026-09-25")
+        self.assertFalse(doc["technical_source_as_of_binding_required"])
+
+    def test_stale_day_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(trade_date="2026-09-24", market_timestamp="2026-09-24T09:34:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertEqual(doc["pass_count"], 0)
+        self.assertTrue(all(item["execution_gate"] == "STALE_DAY" for item in doc["instruments"]))
+        self.assertTrue(all(item["fail_closed_reason"] == "TRADE_DATE_MISMATCH" for item in doc["instruments"]))
+
+    def test_future_timestamp_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T09:36:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "FUTURE_TIMESTAMP" for item in doc["instruments"]))
+        self.assertTrue(all(item["freshness_seconds"] == -60 for item in doc["instruments"]))
+
+    def test_stale_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T09:00:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "STALE_QUOTE" for item in doc["instruments"]))
+        self.assertTrue(all(item["freshness_seconds"] == 2100 for item in doc["instruments"]))
+
+    def test_missing_price_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(last_price=None), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "PRICE_MISSING" for item in doc["instruments"]))
+
+    def test_unapproved_source_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(source_id="UNAPPROVED_VENDOR"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "UNAPPROVED_SOURCE" for item in doc["instruments"]))
+
+    def test_non_tradable_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(tradable=False), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertFalse(doc["publishable"])
+        self.assertEqual(doc["pass_count"], 0)
+        self.assertTrue(all(item["validation_status"] == "BLOCKED" for item in doc["instruments"]))
+        self.assertTrue(all(item["execution_gate"] == "NOT_TRADABLE" for item in doc["instruments"]))
+        self.assertTrue(all(item["fail_closed_reason"] == "INSTRUMENT_NOT_TRADABLE" for item in doc["instruments"]))
+        self.assertTrue(all(item["tradable"] is False for item in doc["instruments"]))
+
+    def test_1205_midday_uses_own_decision_time(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T12:00:00+08:00"), decision_cadence="OIS_1205_MIDDAY", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertEqual(doc["decision_cadence"], "OIS_1205_MIDDAY")
+        self.assertTrue(all(item["freshness_seconds"] == 300 for item in doc["instruments"]))
+
+    def test_partial_layer_allows_individual_symbol_pass(self):
+        market = {"00642U": self.approved_quote("00642U")}
+        doc = build_execution_data_layer(self.tmp, market, decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PARTIAL")
+        self.assertTrue(doc["publishable"])
+        self.assertEqual(doc["pass_count"], 1)
+        self.assertEqual(doc["instruments"][0]["validation_status"], "PASS")
+        self.assertEqual(doc["instruments"][1]["validation_status"], "BLOCKED")
+        self.assertEqual(doc["instruments"][2]["validation_status"], "BLOCKED")
+
+    def test_trade_date_is_not_bound_to_production_technical_source_as_of(self):
+        state = load_current_state(self.tmp)
+        self.assertEqual(state["source_as_of"], "2026-09-25")
+        doc = build_execution_data_layer(self.tmp, self.quote_set(trade_date="2026-09-29", market_timestamp="2026-09-29T09:30:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-29")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertEqual(doc["decision_trade_date"], "2026-09-29")
+        self.assertEqual(doc["instruments"][0]["source_binding"]["technical_source_as_of"], "2026-09-25")
+        self.assertFalse(doc["technical_source_as_of_binding_required"])
+
+    def test_write_execution_data_layer_preserves_fail_closed_status(self):
+        path = write_execution_data_layer(self.tmp)
+        doc = read_json(path)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertEqual(doc["state_ledger_ssot_binding"], "PASS")
+        self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
 
 
 
