@@ -740,56 +740,114 @@ class ExecutionDataLayerTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
+    def approved_quote(self, symbol, *, trade_date="2026-09-25", market_timestamp="2026-09-25T09:30:00+08:00", last_price=10.5, source_id="TWSE_INTRADAY_EXECUTION_PRICE", tradable=True):
+        return {
+            "symbol": symbol,
+            "trade_date": trade_date,
+            "market_timestamp": market_timestamp,
+            "last_price": last_price,
+            "tradable": tradable,
+            "source_metadata": {
+                "source_id": source_id,
+                "source_name": "Approved Taiwan intraday execution price feed",
+                "source_url": "https://approved.example.invalid/twse/intraday",
+                "retrieval_timestamp": market_timestamp,
+                "approved": True,
+            },
+        }
+
+    def quote_set(self, **overrides):
+        return {symbol: self.approved_quote(symbol, **overrides) for symbol in REQUIRED_EXECUTION_SYMBOLS}
+
     def test_execution_layer_requires_three_target_symbols_and_fails_closed_without_source(self):
-        doc = build_execution_data_layer(self.tmp)
+        doc = build_execution_data_layer(self.tmp, decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
         validate_execution_data_layer(doc)
         self.assertEqual(tuple(doc["required_symbols"]), REQUIRED_EXECUTION_SYMBOLS)
         self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
         self.assertEqual(doc["validation_status"], "BLOCKED")
         self.assertFalse(doc["publishable"])
-        self.assertEqual(doc["fail_closed_reason"], "OFFICIAL_EXECUTION_MARKET_DATA_MISSING_FOR_REQUIRED_SYMBOLS")
+        self.assertEqual(doc["fail_closed_reason"], "NO_SYMBOL_PASSED_EXECUTION_PRICE_GATE")
         self.assertTrue(all(item["fallback_used"] is False for item in doc["instruments"]))
+        self.assertTrue(all("trade_date" in item and "market_timestamp" in item and "last_price" in item for item in doc["instruments"]))
 
-    def test_execution_layer_passes_with_complete_approved_market_records(self):
-        state = load_current_state(self.tmp)
-        market = {
-            symbol: {
-                "symbol": symbol,
-                "source": "APPROVED_EXECUTION_MARKET_DATA_SOURCE",
-                "retrieval_timestamp": "2026-09-29T00:00:00Z",
-                "trading_date": state["source_as_of"],
-                "open": 1.0,
-                "high": 1.0,
-                "low": 1.0,
-                "close": 1.0,
-                "volume": 1,
-            }
-            for symbol in REQUIRED_EXECUTION_SYMBOLS
-        }
-        doc = build_execution_data_layer(self.tmp, market)
+    def test_fresh_valid_quote_passes_execution_price_gate(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
         validate_execution_data_layer(doc)
         self.assertEqual(doc["validation_status"], "PASS")
         self.assertTrue(doc["publishable"])
-        self.assertTrue(all(item["validation_status"] == "PASS" for item in doc["instruments"]))
+        self.assertEqual(doc["pass_count"], 3)
+        for item in doc["instruments"]:
+            self.assertEqual(item["validation_status"], "PASS")
+            self.assertEqual(item["trade_date"], "2026-09-25")
+            self.assertEqual(item["decision_cadence"], "OIS_0935_OPENING")
+            self.assertEqual(item["freshness_seconds"], 300)
+            self.assertGreater(item["last_price"], 0)
+            self.assertTrue(item["tradable"])
+            self.assertEqual(item["approved_source_metadata"]["source_id"], "TWSE_INTRADAY_EXECUTION_PRICE")
+            self.assertEqual(item["source_binding"]["technical_source_as_of"], "2026-09-25")
+        self.assertFalse(doc["technical_source_as_of_binding_required"])
 
-    def test_execution_layer_rejects_unapproved_source(self):
+    def test_stale_day_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(trade_date="2026-09-24", market_timestamp="2026-09-24T09:34:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertEqual(doc["pass_count"], 0)
+        self.assertTrue(all(item["execution_gate"] == "STALE_DAY" for item in doc["instruments"]))
+        self.assertTrue(all(item["fail_closed_reason"] == "TRADE_DATE_MISMATCH" for item in doc["instruments"]))
+
+    def test_future_timestamp_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T09:36:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "FUTURE_TIMESTAMP" for item in doc["instruments"]))
+        self.assertTrue(all(item["freshness_seconds"] == -60 for item in doc["instruments"]))
+
+    def test_stale_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T09:00:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "STALE_QUOTE" for item in doc["instruments"]))
+        self.assertTrue(all(item["freshness_seconds"] == 2100 for item in doc["instruments"]))
+
+    def test_missing_price_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(last_price=None), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "PRICE_MISSING" for item in doc["instruments"]))
+
+    def test_unapproved_source_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(source_id="UNAPPROVED_VENDOR"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertTrue(all(item["execution_gate"] == "UNAPPROVED_SOURCE" for item in doc["instruments"]))
+
+    def test_1205_midday_uses_own_decision_time(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T12:00:00+08:00"), decision_cadence="OIS_1205_MIDDAY", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertEqual(doc["decision_cadence"], "OIS_1205_MIDDAY")
+        self.assertTrue(all(item["freshness_seconds"] == 300 for item in doc["instruments"]))
+
+    def test_partial_layer_allows_individual_symbol_pass(self):
+        market = {"00642U": self.approved_quote("00642U")}
+        doc = build_execution_data_layer(self.tmp, market, decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PARTIAL")
+        self.assertTrue(doc["publishable"])
+        self.assertEqual(doc["pass_count"], 1)
+        self.assertEqual(doc["instruments"][0]["validation_status"], "PASS")
+        self.assertEqual(doc["instruments"][1]["validation_status"], "BLOCKED")
+        self.assertEqual(doc["instruments"][2]["validation_status"], "BLOCKED")
+
+    def test_trade_date_is_not_bound_to_production_technical_source_as_of(self):
         state = load_current_state(self.tmp)
-        market = {
-            symbol: {
-                "symbol": symbol,
-                "source": "fixture",
-                "retrieval_timestamp": "2026-09-29T00:00:00Z",
-                "trading_date": state["source_as_of"],
-                "open": 1.0,
-                "high": 1.0,
-                "low": 1.0,
-                "close": 1.0,
-                "volume": 1,
-            }
-            for symbol in REQUIRED_EXECUTION_SYMBOLS
-        }
-        with self.assertRaisesRegex(IntegrityError, "UNAPPROVED_SOURCE"):
-            build_execution_data_layer(self.tmp, market)
+        self.assertEqual(state["source_as_of"], "2026-09-25")
+        doc = build_execution_data_layer(self.tmp, self.quote_set(trade_date="2026-09-29", market_timestamp="2026-09-29T09:30:00+08:00"), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-29")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertEqual(doc["decision_trade_date"], "2026-09-29")
+        self.assertEqual(doc["instruments"][0]["source_binding"]["technical_source_as_of"], "2026-09-25")
+        self.assertFalse(doc["technical_source_as_of_binding_required"])
 
     def test_write_execution_data_layer_preserves_fail_closed_status(self):
         path = write_execution_data_layer(self.tmp)
