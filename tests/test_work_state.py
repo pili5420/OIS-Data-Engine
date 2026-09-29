@@ -26,7 +26,11 @@ from src.work_state import (EXPECTED_BOOTSTRAP_SNAPSHOT_ID, EXPECTED_WFA_INFRA_E
                             write_w2_evidence, write_w3_evidence, state_id, SYSTEM, STATE_VERSION,
                             validate_authoritative_production_snapshot, load_work_ledgers,
                             build_incremental_state, atomic_commit_incremental_state,
-                            EXECUTION_TYPE_RECOVERY, EXECUTION_TYPE_SOAK, WORK_CADENCE_ORDER)
+                            EXECUTION_TYPE_RECOVERY, EXECUTION_TYPE_SOAK, WORK_CADENCE_ORDER,
+                            ledger_source_for_state, validate_production_persistent_state_ssot,
+                            write_production_persistent_state_ssot)
+from src.execution_layer import (REQUIRED_EXECUTION_SYMBOLS, build_execution_data_layer,
+                                 validate_execution_data_layer, write_execution_data_layer)
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_W2_STATE_ID = "ois-work-state-v1-5a8145e8-4f3ed4f408d1-1400758a-270-5b8f32d66add733bc3131199"
@@ -646,6 +650,153 @@ class WorkStateThreeDaySoakTests(unittest.TestCase):
             execution = read_json(path)
             self.assertTrue(execution["idempotency_key"].startswith("WFA001-W5:"))
             self.assertEqual(execution["execution_type"], EXECUTION_TYPE_SOAK)
+
+
+
+class ProductionPersistentStateSsotTests(unittest.TestCase):
+    def setUp(self):
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        self.state = load_current_state(self.tmp)
+        source = ledger_source_for_state(self.state)
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["current_state_id"] = self.state["current_state_id"]
+            ledger["current_state_hash"] = self.state["current_state_hash"]
+            ledger["last_work_execution_id"] = self.state["work_execution_id"]
+            ledger["source"] = source
+            write_json(ledger_path, ledger)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_persistent_state_ssot_binds_current_state_and_ledgers(self):
+        manifest = validate_production_persistent_state_ssot(self.tmp, self.state)
+        self.assertEqual(manifest["validation_status"], "PASS")
+        self.assertEqual(manifest["current_state"]["state_id"], self.state["current_state_id"])
+        self.assertEqual(manifest["portfolio_ledger"]["current_state_hash"], self.state["current_state_hash"])
+        self.assertEqual(manifest["transaction_ledger"]["source"], ledger_source_for_state(self.state))
+        self.assertFalse(manifest["strategy_modified"])
+        self.assertFalse(manifest["rolling_180_modified"])
+        self.assertFalse(manifest["six_chart_renderer_modified"])
+
+    def test_stale_ledger_source_fails_persistent_state_ssot(self):
+        ledger_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
+        ledger = read_json(ledger_path)
+        ledger["source"]["source_run_id"] = "stale-run"
+        write_json(ledger_path, ledger)
+        with self.assertRaisesRegex(IntegrityError, "SSOT_PORTFOLIO_LEDGER_SOURCE"):
+            validate_production_persistent_state_ssot(self.tmp, self.state)
+
+    def test_write_persistent_state_ssot_manifest(self):
+        path = write_production_persistent_state_ssot(self.tmp)
+        manifest = read_json(path)
+        self.assertEqual(manifest["state_ledger_binding"], "PASS")
+        self.assertEqual(manifest["transaction_ledger"]["current_state_id"], self.state["current_state_id"])
+
+    def test_incremental_transition_updates_ledger_source_to_new_state_source(self):
+        production = validate_authoritative_production_snapshot(self.tmp)
+        production = dict(production)
+        production["source_run_id"] = "new-authoritative-run"
+        production["source_commit_sha"] = "a" * 40
+        production["production_lineage"] = dict(production["production_lineage"])
+        production["production_lineage"].update({"run_id": production["source_run_id"], "commit_sha": production["source_commit_sha"]})
+        portfolio, transactions = load_work_ledgers(self.tmp)
+        bundle = build_incremental_state(work_execution_id="ssot-transition-source", prior=self.state, production=production, portfolio=portfolio, transactions=transactions, created_at="2026-09-29T00:00:00Z")
+        expected = ledger_source_for_state(bundle["state"])
+        self.assertEqual(bundle["portfolio_ledger"]["source"], expected)
+        self.assertEqual(bundle["transaction_ledger"]["source"], expected)
+
+
+class ExecutionDataLayerTests(unittest.TestCase):
+    def setUp(self):
+        base = Path(os.environ.get("TMP", tempfile.gettempdir())) / "ois-work-state-tests"
+        base.mkdir(parents=True, exist_ok=True)
+        self.tmp = base / f"case-{uuid.uuid4().hex}"
+        self.tmp.mkdir(parents=True)
+        (self.tmp / "data/production").mkdir(parents=True)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data/production" / name, self.tmp / "data/production" / name)
+        shutil.copytree(ROOT / STATE_ROOT, self.tmp / STATE_ROOT)
+        state = load_current_state(self.tmp)
+        source = ledger_source_for_state(state)
+        for ledger_name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            ledger_path = self.tmp / STATE_ROOT / ledger_name
+            ledger = read_json(ledger_path)
+            ledger["current_state_id"] = state["current_state_id"]
+            ledger["current_state_hash"] = state["current_state_hash"]
+            ledger["last_work_execution_id"] = state["work_execution_id"]
+            ledger["source"] = source
+            write_json(ledger_path, ledger)
+        write_production_persistent_state_ssot(self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_execution_layer_requires_three_target_symbols_and_fails_closed_without_source(self):
+        doc = build_execution_data_layer(self.tmp)
+        validate_execution_data_layer(doc)
+        self.assertEqual(tuple(doc["required_symbols"]), REQUIRED_EXECUTION_SYMBOLS)
+        self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertFalse(doc["publishable"])
+        self.assertEqual(doc["fail_closed_reason"], "OFFICIAL_EXECUTION_MARKET_DATA_MISSING_FOR_REQUIRED_SYMBOLS")
+        self.assertTrue(all(item["fallback_used"] is False for item in doc["instruments"]))
+
+    def test_execution_layer_passes_with_complete_approved_market_records(self):
+        state = load_current_state(self.tmp)
+        market = {
+            symbol: {
+                "symbol": symbol,
+                "source": "APPROVED_EXECUTION_MARKET_DATA_SOURCE",
+                "retrieval_timestamp": "2026-09-29T00:00:00Z",
+                "trading_date": state["source_as_of"],
+                "open": 1.0,
+                "high": 1.0,
+                "low": 1.0,
+                "close": 1.0,
+                "volume": 1,
+            }
+            for symbol in REQUIRED_EXECUTION_SYMBOLS
+        }
+        doc = build_execution_data_layer(self.tmp, market)
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "PASS")
+        self.assertTrue(doc["publishable"])
+        self.assertTrue(all(item["validation_status"] == "PASS" for item in doc["instruments"]))
+
+    def test_execution_layer_rejects_unapproved_source(self):
+        state = load_current_state(self.tmp)
+        market = {
+            symbol: {
+                "symbol": symbol,
+                "source": "fixture",
+                "retrieval_timestamp": "2026-09-29T00:00:00Z",
+                "trading_date": state["source_as_of"],
+                "open": 1.0,
+                "high": 1.0,
+                "low": 1.0,
+                "close": 1.0,
+                "volume": 1,
+            }
+            for symbol in REQUIRED_EXECUTION_SYMBOLS
+        }
+        with self.assertRaisesRegex(IntegrityError, "UNAPPROVED_SOURCE"):
+            build_execution_data_layer(self.tmp, market)
+
+    def test_write_execution_data_layer_preserves_fail_closed_status(self):
+        path = write_execution_data_layer(self.tmp)
+        doc = read_json(path)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertEqual(doc["state_ledger_ssot_binding"], "PASS")
+        self.assertEqual([item["symbol"] for item in doc["instruments"]], list(REQUIRED_EXECUTION_SYMBOLS))
 
 
 
