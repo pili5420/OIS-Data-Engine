@@ -111,6 +111,8 @@ def evaluate_execution_market_record(record: Mapping[str, Any] | None, *, symbol
     metadata = approved_source_metadata(record)
     if metadata is None:
         return {"validation_status": "BLOCKED", "execution_gate": "UNAPPROVED_SOURCE", "fail_closed_reason": "SOURCE_METADATA_NOT_APPROVED", "freshness_seconds": freshness_seconds}
+    if record.get("tradable") is not True:
+        return {"validation_status": "BLOCKED", "execution_gate": "NOT_TRADABLE", "fail_closed_reason": "INSTRUMENT_NOT_TRADABLE", "freshness_seconds": freshness_seconds, "trade_date": trade_date, "market_timestamp": market_timestamp.isoformat(), "last_price": float(last_price), "tradable": False, "approved_source_metadata": metadata}
     return {
         "validation_status": "PASS",
         "execution_gate": "PASS",
@@ -122,7 +124,7 @@ def evaluate_execution_market_record(record: Mapping[str, Any] | None, *, symbol
         "decision_cadence": decision_cadence,
         "decision_timestamp": decision_at.isoformat(),
         "freshness_threshold_seconds": threshold,
-        "tradable": record.get("tradable") is True,
+        "tradable": True,
         "approved_source_metadata": metadata,
     }
 

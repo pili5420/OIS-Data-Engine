@@ -821,6 +821,17 @@ class ExecutionDataLayerTests(unittest.TestCase):
         self.assertEqual(doc["validation_status"], "BLOCKED")
         self.assertTrue(all(item["execution_gate"] == "UNAPPROVED_SOURCE" for item in doc["instruments"]))
 
+    def test_non_tradable_quote_fails_closed(self):
+        doc = build_execution_data_layer(self.tmp, self.quote_set(tradable=False), decision_cadence="OIS_0935_OPENING", decision_trade_date="2026-09-25")
+        validate_execution_data_layer(doc)
+        self.assertEqual(doc["validation_status"], "BLOCKED")
+        self.assertFalse(doc["publishable"])
+        self.assertEqual(doc["pass_count"], 0)
+        self.assertTrue(all(item["validation_status"] == "BLOCKED" for item in doc["instruments"]))
+        self.assertTrue(all(item["execution_gate"] == "NOT_TRADABLE" for item in doc["instruments"]))
+        self.assertTrue(all(item["fail_closed_reason"] == "INSTRUMENT_NOT_TRADABLE" for item in doc["instruments"]))
+        self.assertTrue(all(item["tradable"] is False for item in doc["instruments"]))
+
     def test_1205_midday_uses_own_decision_time(self):
         doc = build_execution_data_layer(self.tmp, self.quote_set(market_timestamp="2026-09-25T12:00:00+08:00"), decision_cadence="OIS_1205_MIDDAY", decision_trade_date="2026-09-25")
         validate_execution_data_layer(doc)
