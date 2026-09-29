@@ -48,16 +48,19 @@ def decision_timestamp(*, trade_date: str, decision_cadence: str) -> datetime:
 
 def execution_source_binding(ssot: Mapping[str, Any], state: Mapping[str, Any]) -> dict:
     current = ssot["current_state"]
+    authoritative = ssot["authoritative_production_pointer"]
     return {
         "persistent_state_ssot_path": PERSISTENT_STATE_SSOT_PATH.as_posix(),
         "persistent_state_ssot_sha256": ssot.get("manifest_sha256"),
         "current_state_id": current["state_id"],
         "current_state_hash": current["state_hash"],
-        "production_snapshot_id": current["production_snapshot_id"],
-        "technical_source_as_of": current["source_as_of"],
+        "current_state_production_snapshot_id": current["production_snapshot_id"],
+        "production_snapshot_id": authoritative["production_snapshot_id"],
+        "technical_source_as_of": authoritative["source_as_of"],
         "work_trading_date": state.get("trading_date"),
-        "source_run_id": current["source_run_id"],
-        "source_commit_sha": current["source_commit_sha"],
+        "source_run_id": authoritative["run_id"],
+        "source_commit_sha": authoritative["commit_sha"],
+        "current_state_transition_pending": current["production_snapshot_id"] != authoritative["production_snapshot_id"],
     }
 
 
@@ -140,6 +143,7 @@ def build_execution_data_layer(root: Path, official_execution_market_data: Mappi
     ssot = dict(ssot)
     ssot["manifest_sha256"] = manifest_hash
     binding = execution_source_binding(ssot, state)
+    authoritative = ssot["authoritative_production_pointer"]
     decision_trade_date = decision_trade_date or state.get("trading_date")
     require(isinstance(decision_trade_date, str) and len(decision_trade_date) >= 10, "OIS_EXECUTION_DECISION_TRADE_DATE")
     decision_at = decision_timestamp(trade_date=decision_trade_date, decision_cadence=decision_cadence)
@@ -197,6 +201,14 @@ def build_execution_data_layer(root: Path, official_execution_market_data: Mappi
         "tradable_count": tradable_count,
         "execution_market_data_source": "APPROVED_INTRADAY_EXECUTION_PRICE_SOURCE" if pass_count else None,
         "fail_closed_reason": None if pass_count else "NO_SYMBOL_PASSED_EXECUTION_PRICE_GATE",
+        "authoritative_production_binding": {
+            "production_snapshot_id": authoritative["production_snapshot_id"],
+            "run_id": authoritative["run_id"],
+            "commit_sha": authoritative["commit_sha"],
+            "source_as_of": authoritative["source_as_of"],
+            "persistent_state_ssot_sha256": manifest_hash,
+            "current_state_transition_pending": binding["current_state_transition_pending"],
+        },
         "technical_source_as_of_binding_required": False,
         "state_ledger_ssot_binding": "PASS",
         "strategy_modified": False,
@@ -213,6 +225,8 @@ def validate_execution_data_layer(doc: Mapping[str, Any]) -> None:
     require(tuple(doc.get("required_symbols", [])) == REQUIRED_EXECUTION_SYMBOLS, "OIS_EXECUTION_REQUIRED_SYMBOLS")
     require(doc.get("decision_cadence") in DECISION_CADENCES, "OIS_EXECUTION_DECISION_CADENCE")
     require(doc.get("technical_source_as_of_binding_required") is False, "OIS_EXECUTION_TECHNICAL_SOURCE_BOUND")
+    authoritative = doc.get("authoritative_production_binding")
+    require(isinstance(authoritative, dict) and authoritative.get("production_snapshot_id") and authoritative.get("run_id") and authoritative.get("commit_sha"), "OIS_EXECUTION_AUTHORITATIVE_BINDING")
     instruments = doc.get("instruments")
     require(isinstance(instruments, list) and len(instruments) == len(REQUIRED_EXECUTION_SYMBOLS), "OIS_EXECUTION_INSTRUMENT_COUNT")
     seen = [item.get("symbol") for item in instruments if isinstance(item, dict)]
@@ -225,6 +239,11 @@ def validate_execution_data_layer(doc: Mapping[str, Any]) -> None:
         require(item.get("desktop_data_used") is False, f"OIS_EXECUTION_DESKTOP:{symbol}")
         binding = item.get("source_binding")
         require(isinstance(binding, dict) and binding.get("current_state_id") and binding.get("current_state_hash"), f"OIS_EXECUTION_BINDING:{symbol}")
+        require(binding.get("production_snapshot_id") == authoritative.get("production_snapshot_id"), f"OIS_EXECUTION_BINDING_SNAPSHOT:{symbol}")
+        require(binding.get("source_run_id") == authoritative.get("run_id"), f"OIS_EXECUTION_BINDING_RUN:{symbol}")
+        require(binding.get("source_commit_sha") == authoritative.get("commit_sha"), f"OIS_EXECUTION_BINDING_COMMIT:{symbol}")
+        require(binding.get("technical_source_as_of") == authoritative.get("source_as_of"), f"OIS_EXECUTION_BINDING_SOURCE_AS_OF:{symbol}")
+        require(binding.get("persistent_state_ssot_sha256") == authoritative.get("persistent_state_ssot_sha256"), f"OIS_EXECUTION_BINDING_SSOT_HASH:{symbol}")
         for field in ("trade_date", "market_timestamp", "last_price", "freshness_seconds", "decision_cadence", "tradable"):
             require(field in item, f"OIS_EXECUTION_FIELD_REQUIRED:{symbol}:{field}")
         if item.get("validation_status") == "PASS":

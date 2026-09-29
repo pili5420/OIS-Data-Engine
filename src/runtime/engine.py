@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,8 @@ from src.runtime.validation import (CHECKS, FIELDS, PUBLIC_FILES, read_json, req
 
 CSV_FIELDS = ["date", *FIELDS, "source"]
 STATE_PATH = "data/runtime/history.json"
+ALLOWED_CANDIDATE_FILES = {f"data/production/{filename}" for filename in PUBLIC_FILES} | {STATE_PATH} | {
+    f"data/production/ois_{key}_{suffix}" for key in ("wti", "brent") for suffix in ("clean.csv", "indicators.json")}
 
 
 def encoded(value: dict) -> bytes:
@@ -180,6 +183,45 @@ def make_documents(history: dict, previous_rolling: dict | None, migrated: bool,
     return documents, indicators
 
 
+
+
+def sync_final_binding_artifacts(root: Path, candidate: Path) -> list[str]:
+    """Regenerate Production final-binding artifacts inside a private candidate.
+
+    The Work current state and ledgers may legitimately remain on their latest
+    cadence transition, but their authoritative production pointer and the
+    execution data layer must bind to the freshly built Production snapshot.
+    """
+    from src.execution_layer import EXECUTION_LAYER_PATH, build_execution_data_layer, validate_execution_data_layer
+    from src.work_state import PERSISTENT_STATE_SSOT_PATH, STATE_ROOT, write_production_persistent_state_ssot
+
+    root_store = root / STATE_ROOT
+    if not root_store.exists():
+        return []
+    candidate_store = candidate / STATE_ROOT
+    if candidate_store.exists():
+        shutil.rmtree(candidate_store)
+    shutil.copytree(root_store, candidate_store)
+    ssot_path = write_production_persistent_state_ssot(candidate)
+    execution_doc = build_execution_data_layer(candidate)
+    validate_execution_data_layer(execution_doc)
+    write_json(candidate / EXECUTION_LAYER_PATH, execution_doc)
+    status = read_json(candidate / "data/production/ois_status.json")
+    ssot = read_json(ssot_path)
+    authoritative = ssot.get("authoritative_production_pointer", {})
+    require(authoritative.get("production_snapshot_id") == status.get("production_snapshot_id"), "FINAL_BINDING_SSOT_SNAPSHOT")
+    require(authoritative.get("run_id") == status.get("run_id"), "FINAL_BINDING_SSOT_RUN")
+    require(authoritative.get("commit_sha") == status.get("commit_sha"), "FINAL_BINDING_SSOT_COMMIT")
+    require(authoritative.get("source_as_of") == status.get("source_as_of"), "FINAL_BINDING_SSOT_SOURCE_AS_OF")
+    execution = read_json(candidate / EXECUTION_LAYER_PATH)
+    binding = execution.get("authoritative_production_binding", {})
+    require(binding.get("production_snapshot_id") == status.get("production_snapshot_id"), "FINAL_BINDING_EXECUTION_SNAPSHOT")
+    require(binding.get("run_id") == status.get("run_id"), "FINAL_BINDING_EXECUTION_RUN")
+    require(binding.get("commit_sha") == status.get("commit_sha"), "FINAL_BINDING_EXECUTION_COMMIT")
+    require(binding.get("source_as_of") == status.get("source_as_of"), "FINAL_BINDING_EXECUTION_SOURCE_AS_OF")
+    return [PERSISTENT_STATE_SSOT_PATH.as_posix(), EXECUTION_LAYER_PATH.as_posix()]
+
+
 def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch, fixture: Path | None = None) -> dict:
     require(candidate.resolve() != root.resolve() and not candidate.exists(), "CANDIDATE_MUST_BE_NEW_DIRECTORY")
     state, rolling, migrated = load_previous(root)
@@ -219,10 +261,12 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
         (candidate / "data/production" / f"ois_{key}_clean.csv").write_bytes(output.getvalue().encode("utf-8"))
     write_json(candidate / STATE_PATH, history)
     validate_bundle(candidate, now)
+    final_binding_files = sync_final_binding_artifacts(root, candidate) if fixture is None else []
+    manifest_files = sorted(ALLOWED_CANDIDATE_FILES | set(final_binding_files))
     manifest = {"validation_status": "PASS", "generated_at": stamp(now), "base_commit": git(root, "rev-parse", "HEAD"),
                 "publishable": fixture is None, "snapshot_id": history["snapshot_id"],
-                "files": {str(path.relative_to(candidate)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
-                          for path in sorted((candidate / "data").rglob("*")) if path.is_file()}}
+                "final_binding_files": final_binding_files,
+                "files": {filename: hashlib.sha256((candidate / filename).read_bytes()).hexdigest() for filename in manifest_files}}
     write_json(candidate / "manifest.json", manifest)
     return {"validation_status": "PASS", "data_as_of": history["data_as_of"], "rolling_count": 180,
             "candidate": str(candidate), "bootstrap_revised_rows": revisions, "accepted_historical_revisions": accepted_revisions, "legacy_metadata_migration": legacy_metadata_migration, "publishable": fixture is None}

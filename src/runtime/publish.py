@@ -9,18 +9,25 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.runtime.engine import STATE_PATH, git, validate_bundle
-from src.runtime.validation import PUBLIC_FILES, read_json, require
+from src.execution_layer import EXECUTION_LAYER_PATH
+from src.runtime.engine import ALLOWED_CANDIDATE_FILES, STATE_PATH, git, validate_bundle
+from src.runtime.validation import read_json, require
+from src.work_state import PERSISTENT_STATE_SSOT_PATH
 
 
-ALLOWED_FILES = {f"data/production/{filename}" for filename in PUBLIC_FILES} | {STATE_PATH} | {
-    f"data/production/ois_{key}_{suffix}" for key in ("wti", "brent") for suffix in ("clean.csv", "indicators.json")}
+OPTIONAL_FINAL_BINDING_FILES = {PERSISTENT_STATE_SSOT_PATH.as_posix(), EXECUTION_LAYER_PATH.as_posix()}
+ALLOWED_FILES = ALLOWED_CANDIDATE_FILES | OPTIONAL_FINAL_BINDING_FILES
 
 
 def publish(root: Path, candidate: Path, branch: str, *, dry_run: bool = False) -> str:
     manifest = read_json(candidate / "manifest.json")
     require(manifest["validation_status"] == "PASS" and manifest["publishable"] is True, "CANDIDATE_NOT_PUBLISHABLE")
-    require(set(manifest["files"]) == ALLOWED_FILES, "PUBLISH_FILE_ALLOWLIST")
+    manifest_file_set = set(manifest["files"])
+    require(ALLOWED_CANDIDATE_FILES <= manifest_file_set, "PUBLISH_REQUIRED_FILE_MISSING")
+    require(manifest_file_set <= ALLOWED_FILES, "PUBLISH_FILE_ALLOWLIST")
+    final_binding_files = set(manifest.get("final_binding_files", []))
+    require(final_binding_files <= OPTIONAL_FINAL_BINDING_FILES, "PUBLISH_FINAL_BINDING_ALLOWLIST")
+    require(final_binding_files <= manifest_file_set, "PUBLISH_FINAL_BINDING_MISSING")
     require(git(root, "rev-parse", "HEAD") == manifest["base_commit"], "CANDIDATE_BASE_CHANGED")
     git(root, "check-ref-format", f"refs/heads/{branch}")
     for filename, expected in manifest["files"].items():
@@ -39,7 +46,7 @@ def publish(root: Path, candidate: Path, branch: str, *, dry_run: bool = False) 
         def command(*args: str, input: str | None = None) -> str:
             return subprocess.check_output(["git", "-C", str(root), *args], input=input, env=env, text=True).strip()
         command("read-tree", base)
-        for filename in sorted(ALLOWED_FILES):
+        for filename in sorted(manifest_file_set):
             blob = command("hash-object", "-w", "--no-filters", str((candidate / filename).resolve()))
             command("update-index", "--add", "--cacheinfo", "100644", blob, filename)
         tree = command("write-tree")
