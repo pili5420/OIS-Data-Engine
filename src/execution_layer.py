@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 from src.runtime.engine import write_json
 from src.runtime.source import IntegrityError
 from src.runtime.validation import read_json, require
-from src.work_state import PERSISTENT_STATE_SSOT_PATH, SYSTEM, file_sha256, load_current_state, validate_production_persistent_state_ssot
+from src.work_state import PERSISTENT_STATE_SSOT_PATH, SYSTEM, load_current_state, sha256_hex, validate_production_persistent_state_ssot
 
 EXECUTION_LAYER_PATH = Path("data/execution/ois/OIS_EXECUTION_DATA_LAYER.json")
 EXECUTION_LAYER_SCHEMA_VERSION = "OIS-EXECUTION-DATA-LAYER-1.0"
@@ -139,7 +139,7 @@ def build_execution_data_layer(root: Path, official_execution_market_data: Mappi
     require(state is not None, "OIS_EXECUTION_CURRENT_STATE_MISSING")
     ssot = validate_production_persistent_state_ssot(root)
     ssot_path = root / PERSISTENT_STATE_SSOT_PATH
-    manifest_hash = file_sha256(ssot_path) if ssot_path.exists() else None
+    manifest_hash = sha256_hex(read_json(ssot_path)) if ssot_path.exists() else None
     ssot = dict(ssot)
     ssot["manifest_sha256"] = manifest_hash
     binding = execution_source_binding(ssot, state)
