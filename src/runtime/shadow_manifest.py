@@ -34,6 +34,10 @@ def _canonical_bytes(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _manifest_hash_payload(manifest: Mapping[str, object]) -> dict:
+    return {k: v for k, v in manifest.items() if k not in {"manifest_sha256", "contract_validation"}}
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -81,8 +85,10 @@ def build_shadow_manifest(
     previous_state_requirement: str = "REQUIRED",
     blocked_dependencies: list[str] | None = None,
     snapshot_type: str = "SHADOW_PRODUCTION_BUNDLE",
+    reference_root: str | Path | None = None,
 ) -> dict:
     production_path = Path(production_dir)
+    reference_path = Path(reference_root).resolve() if reference_root is not None else None
     documents = _load_public_documents(production_path)
     binding = _common_binding(documents)
     payload_references = []
@@ -91,9 +97,16 @@ def build_shadow_manifest(
         for key in ("production_snapshot_id", "run_id", "commit_sha", "validation_status", "freshness_status"):
             if doc.get(key) != binding.get(key):
                 raise IntegrityError(f"CROSS_FILE_BINDING:{filename}:{key}")
+        artifact_path = production_path / filename
+        reference_path_value = artifact_path
+        if reference_path is not None:
+            try:
+                reference_path_value = artifact_path.resolve().relative_to(reference_path)
+            except ValueError:
+                reference_path_value = artifact_path
         payload_references.append({
-            "path": (production_path / filename).as_posix(),
-            "sha256": _sha256(production_path / filename),
+            "path": reference_path_value.as_posix(),
+            "sha256": _sha256(artifact_path),
             "schema_version": doc.get("schema_version"),
             "production_snapshot_id": doc.get("production_snapshot_id"),
             "run_id": doc.get("run_id"),
@@ -123,7 +136,7 @@ def build_shadow_manifest(
         "blocked_dependencies": sorted(set(blocked_dependencies or [])),
         "payload_references": payload_references,
     }
-    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes({k: v for k, v in manifest.items() if k != "manifest_sha256"})).hexdigest()
+    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes(_manifest_hash_payload(manifest))).hexdigest()
     return manifest
 
 
@@ -184,7 +197,7 @@ def validate_shadow_manifest(
             if reference.get(key) != doc.get(key) or manifest.get(key) != doc.get(key):
                 errors.append(f"PAYLOAD_REFERENCE_BINDING_MISMATCH:{Path(str(reference.get('path'))).name}:{key}")
     expected_hash = manifest.get("manifest_sha256")
-    actual_hash = hashlib.sha256(_canonical_bytes({k: v for k, v in manifest.items() if k != "manifest_sha256"})).hexdigest()
+    actual_hash = hashlib.sha256(_canonical_bytes(_manifest_hash_payload(manifest))).hexdigest()
     if expected_hash != actual_hash:
         errors.append("CORRUPTED_MANIFEST")
     status = "PASS" if not errors else "FAIL_CLOSED"

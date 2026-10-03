@@ -1,0 +1,65 @@
+{
+  "blocked_dependencies": [],
+  "cadence": "OIS_1830_PRODUCTION",
+  "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+  "contract_validation": {
+    "errors": [],
+    "ledger_mutation_allowed": false,
+    "portfolio_mutation_allowed": false,
+    "state_mutation_allowed": false,
+    "validation_status": "PASS"
+  },
+  "event": "local-step5a",
+  "freshness": {
+    "artifact_generated_at": "2026-09-29T14:17:03Z",
+    "source_as_of": "2026-09-28",
+    "status": "PASS"
+  },
+  "generated_at": "2026-10-03T15:32:38.200731Z",
+  "manifest_sha256": "73068748f5a219d79dda83425bf687efdce058f10012f86ec3e054a879079777",
+  "market_date": "2026-09-28",
+  "payload_references": [
+    {
+      "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+      "path": "data/production/ois_status.json",
+      "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+      "run_id": "36580950486",
+      "schema_version": "OIS-STATUS-1.0",
+      "sha256": "707bb736f27216aa9852f211a5da2332a590bd50c82aa1747020318b73ddeb68"
+    },
+    {
+      "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+      "path": "data/production/ois_ingestion_validation.json",
+      "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+      "run_id": "36580950486",
+      "schema_version": "OIS-VALIDATION-1.0",
+      "sha256": "f65cb827965f010ab56a141c426039f07478c62cb2b6efb2f65dbac795b3ceed"
+    },
+    {
+      "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+      "path": "data/production/ois_chart_payload.json",
+      "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+      "run_id": "36580950486",
+      "schema_version": "OIS-CHART-1.0",
+      "sha256": "9cc7406ebdfa884b93ea522e234b1ad4ef180b6d1753cde206be5ed79c8044d8"
+    },
+    {
+      "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+      "path": "data/production/ois_chart_rolling_180.json",
+      "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+      "run_id": "36580950486",
+      "schema_version": "OIS-ROLLING-180-1.0",
+      "sha256": "29be02a66a29c4cb6200ef0b4d6602f79620c0439ae381f35630e734b9cf8851"
+    }
+  ],
+  "previous_state_requirement": "REQUIRED",
+  "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+  "run_id": "36580950486",
+  "snapshot_type": "SHADOW_PRODUCTION_BUNDLE",
+  "system": "OIS",
+  "validation": {
+    "source": "bound_public_artifacts",
+    "status": "PASS"
+  },
+  "version": "OIS-PRODUCTION-BUNDLE-MANIFEST-V1"
+}
