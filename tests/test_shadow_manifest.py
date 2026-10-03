@@ -76,6 +76,20 @@ class OisShadowManifestTests(unittest.TestCase):
         self.assertFalse(result["portfolio_mutation_allowed"])
         self.assertFalse(result["ledger_mutation_allowed"])
 
+    def test_empty_blocked_dependencies_can_pass(self):
+        manifest = self.manifest(blocked_dependencies=[])
+        result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+        self.assertEqual(result["validation_status"], "PASS")
+
+    def test_non_empty_blocked_dependencies_fail_closed(self):
+        manifest = self.manifest(blocked_dependencies=["UPSTREAM_DEPENDENCY_HOLD"])
+        result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+        self.assertEqual(result["validation_status"], "FAIL_CLOSED")
+        self.assertIn("BLOCKED_DEPENDENCIES_PRESENT", result["errors"])
+        self.assertFalse(result["state_mutation_allowed"])
+        self.assertFalse(result["portfolio_mutation_allowed"])
+        self.assertFalse(result["ledger_mutation_allowed"])
+
     def test_missing_artifact_fails_before_manifest_creation(self):
         (self.production / "ois_status.json").unlink()
         with self.assertRaisesRegex(ValueError, "MISSING_ARTIFACT"):
