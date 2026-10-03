@@ -18,6 +18,7 @@ from src.payload.chart_payload import build_chart_payload
 from src.rollover.normalization import check_rollover
 from src.sources.adapters import PriceRow
 from src.runtime.source import IntegrityError, TransientError, fetch, stamp
+from src.runtime.shadow_manifest import build_shadow_manifest, validate_shadow_manifest
 from src.runtime.revisions import load_revision_evidence, match_approved_revision, revision_summary
 from src.runtime.validation import (CHECKS, FIELDS, PUBLIC_FILES, read_json, require,
                                     validate_documents, validate_history, validate_indicators)
@@ -25,8 +26,10 @@ from src.runtime.validation import (CHECKS, FIELDS, PUBLIC_FILES, read_json, req
 
 CSV_FIELDS = ["date", *FIELDS, "source"]
 STATE_PATH = "data/runtime/history.json"
+PRODUCTION_BUNDLE_MANIFEST_PATH = "data/production/ois_production_bundle_manifest_v1.json"
 ALLOWED_CANDIDATE_FILES = {f"data/production/{filename}" for filename in PUBLIC_FILES} | {STATE_PATH} | {
-    f"data/production/ois_{key}_{suffix}" for key in ("wti", "brent") for suffix in ("clean.csv", "indicators.json")}
+    f"data/production/ois_{key}_{suffix}" for key in ("wti", "brent") for suffix in ("clean.csv", "indicators.json")} | {
+    PRODUCTION_BUNDLE_MANIFEST_PATH}
 
 
 def encoded(value: dict) -> bytes:
@@ -222,6 +225,23 @@ def sync_final_binding_artifacts(root: Path, candidate: Path) -> list[str]:
     return [PERSISTENT_STATE_SSOT_PATH.as_posix(), EXECUTION_LAYER_PATH.as_posix()]
 
 
+def materialize_production_bundle_manifest(candidate: Path, now: datetime, cadence: str = "OIS_1830_PRODUCTION") -> dict:
+    """Bind the four public Production artifacts without recalculating them."""
+    history = read_json(candidate / STATE_PATH)
+    manifest = build_shadow_manifest(
+        production_dir=candidate / "data/production",
+        cadence=cadence,
+        event=os.environ.get("GITHUB_EVENT_NAME", "local"),
+        market_date=history["data_as_of"],
+        generated_at=stamp(now),
+        reference_root=candidate,
+    )
+    validation = validate_shadow_manifest(manifest, root=candidate, now=now)
+    require(validation["validation_status"] == "PASS", "PRODUCTION_BUNDLE_MANIFEST_INVALID")
+    write_json(candidate / PRODUCTION_BUNDLE_MANIFEST_PATH, {**manifest, "contract_validation": validation})
+    return manifest
+
+
 def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch, fixture: Path | None = None) -> dict:
     require(candidate.resolve() != root.resolve() and not candidate.exists(), "CANDIDATE_MUST_BE_NEW_DIRECTORY")
     state, rolling, migrated = load_previous(root)
@@ -261,13 +281,14 @@ def build_candidate(root: Path, candidate: Path, now: datetime, *, fetcher=fetch
         (candidate / "data/production" / f"ois_{key}_clean.csv").write_bytes(output.getvalue().encode("utf-8"))
     write_json(candidate / STATE_PATH, history)
     validate_bundle(candidate, now)
+    materialize_production_bundle_manifest(candidate, now)
     final_binding_files = sync_final_binding_artifacts(root, candidate) if fixture is None else []
     manifest_files = sorted(ALLOWED_CANDIDATE_FILES | set(final_binding_files))
-    manifest = {"validation_status": "PASS", "generated_at": stamp(now), "base_commit": git(root, "rev-parse", "HEAD"),
+    candidate_manifest = {"validation_status": "PASS", "generated_at": stamp(now), "base_commit": git(root, "rev-parse", "HEAD"),
                 "publishable": fixture is None, "snapshot_id": history["snapshot_id"],
                 "final_binding_files": final_binding_files,
                 "files": {filename: hashlib.sha256((candidate / filename).read_bytes()).hexdigest() for filename in manifest_files}}
-    write_json(candidate / "manifest.json", manifest)
+    write_json(candidate / "manifest.json", candidate_manifest)
     return {"validation_status": "PASS", "data_as_of": history["data_as_of"], "rolling_count": 180,
             "candidate": str(candidate), "bootstrap_revised_rows": revisions, "accepted_historical_revisions": accepted_revisions, "legacy_metadata_migration": legacy_metadata_migration, "publishable": fixture is None}
 
