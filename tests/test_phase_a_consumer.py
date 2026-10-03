@@ -13,6 +13,7 @@ from src.runtime.consumer import build_phase_a_consumer_evidence
 from src.runtime.engine import write_json
 from src.runtime.shadow_manifest import build_shadow_manifest
 from src.runtime.validation import PUBLIC_FILES
+from src.work_state import STATE_ROOT, SYSTEM, STATE_VERSION, build_initial_state, calculate_state_hash, ledger_source_for_state, state_id
 
 
 class OisPhaseAConsumerTests(unittest.TestCase):
@@ -50,7 +51,8 @@ class OisPhaseAConsumerTests(unittest.TestCase):
         }
         for name, doc in docs.items():
             write_json(self.production / name, doc)
-        self.write_json(self.previous_state_path, {"current_state_id": "ois-state-prev-1", "current_state_hash": "h1"})
+        self.previous_state = self.previous_state_fixture()
+        self.write_json(self.previous_state_path, self.previous_state)
         self.manifest_path = self.tmp / "manifest.json"
         self.write_json(self.manifest_path, self.manifest())
 
@@ -83,11 +85,56 @@ class OisPhaseAConsumerTests(unittest.TestCase):
             "expected_run_id": "run-1",
             "expected_commit_sha": "b" * 40,
             "expected_production_snapshot_id": "a" * 64,
-            "expected_previous_state_id": "ois-state-prev-1",
+            "expected_previous_state_id": self.previous_state["current_state_id"],
+            "expected_previous_state_hash": self.previous_state["current_state_hash"],
+            "render_preview_status": "PASS",
             "now": self.now,
         }
         args.update(overrides)
         return build_phase_a_consumer_evidence(**args)
+
+    def previous_state_fixture(self):
+        production = {
+            "production_snapshot_id": "a" * 64,
+            "source_run_id": "run-1",
+            "source_commit_sha": "b" * 40,
+            "source_as_of": "2026-09-14",
+            "production_lineage": {
+                "production_snapshot_id": "a" * 64,
+                "run_id": "run-1",
+                "commit_sha": "b" * 40,
+                "source_as_of": "2026-09-14",
+            },
+        }
+        bundle = build_initial_state(work_execution_id="phase-a-prev-001", production=production, created_at="2026-09-15T00:00:00Z")
+        store = self.tmp / STATE_ROOT
+        (store / "history").mkdir(parents=True)
+        self.write_json(store / "current_state.json", bundle["state"])
+        self.write_json(store / "history" / f"{bundle['state']['current_state_id']}.json", bundle["state"])
+        self.write_json(store / "portfolio_ledger.json", bundle["portfolio_ledger"])
+        self.write_json(store / "transaction_ledger.json", bundle["transaction_ledger"])
+        return bundle["state"]
+
+    def refresh_state_identity(self, state):
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=state["production_snapshot_id"], work_execution_id=state["work_execution_id"], state_hash=state["current_state_hash"])
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["lineage"]["current_state_id"] = state["current_state_id"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id(system=SYSTEM, state_version=STATE_VERSION, production_snapshot_id=state["production_snapshot_id"], work_execution_id=state["work_execution_id"], state_hash=state["current_state_hash"])
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["lineage"]["current_state_id"] = state["current_state_id"]
+        return state
+
+    def rebind_ledgers(self, state):
+        source = ledger_source_for_state(state)
+        for name in ("portfolio_ledger.json", "transaction_ledger.json"):
+            path = self.tmp / STATE_ROOT / name
+            ledger = json.loads(path.read_text(encoding="utf-8"))
+            ledger["current_state_id"] = state["current_state_id"]
+            ledger["current_state_hash"] = state["current_state_hash"]
+            ledger["source"] = source
+            self.write_json(path, ledger)
 
     def assert_fail(self, evidence, reason):
         self.assertEqual(evidence["status"], "FAIL_CLOSED")
@@ -134,8 +181,79 @@ class OisPhaseAConsumerTests(unittest.TestCase):
         self.assert_fail(self.evidence(previous_state_path=self.tmp / "missing-state.json"), "MISSING_PREVIOUS_STATE")
         self.previous_state_path.write_text("{", encoding="utf-8")
         self.assert_fail(self.evidence(), "CORRUPTED_PREVIOUS_STATE")
-        self.write_json(self.previous_state_path, {"current_state_id": "other"})
-        self.assert_fail(self.evidence(), "PREVIOUS_STATE_ID_MISMATCH")
+        self.assert_fail(self.evidence(expected_previous_state_id="other"), "PREVIOUS_STATE_ID_MISMATCH")
+
+    def test_previous_state_semantic_and_ledger_corruption_fail_closed(self):
+        state = copy.deepcopy(self.previous_state)
+        state["decision_state"]["signals"].append({"symbol": "FAKE"})
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(), "WORK_STATE_HASH_MISMATCH")
+
+        state = copy.deepcopy(self.previous_state)
+        state["lineage"]["current_state_id"] = "stale"
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(), "WORK_STATE_LINEAGE_ID")
+        self.write_json(self.previous_state_path, self.previous_state)
+        self.rebind_ledgers(self.previous_state)
+
+        portfolio_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
+        portfolio = json.loads(portfolio_path.read_text(encoding="utf-8"))
+        portfolio["current_state_hash"] = "0" * 64
+        self.write_json(portfolio_path, portfolio)
+        self.assert_fail(self.evidence(), "WORK_STATE_SSOT_PORTFOLIO_LEDGER_STATE_HASH")
+        source = ledger_source_for_state(self.previous_state)
+        portfolio["current_state_hash"] = self.previous_state["current_state_hash"]
+        portfolio["source"] = source
+        self.write_json(portfolio_path, portfolio)
+
+        transaction_path = self.tmp / STATE_ROOT / "transaction_ledger.json"
+        transactions = json.loads(transaction_path.read_text(encoding="utf-8"))
+        transactions["source"]["source_run_id"] = "stale-run"
+        self.write_json(transaction_path, transactions)
+        self.assert_fail(self.evidence(), "WORK_STATE_SSOT_TRANSACTION_LEDGER_SOURCE")
+
+    def test_previous_state_reset_and_rollback_fail_closed(self):
+        state = copy.deepcopy(self.previous_state)
+        state["decision_state"]["state_reset_detected"] = True
+        self.refresh_state_identity(state)
+        self.rebind_ledgers(state)
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "WORK_STATE_PRIOR_STATE_RESET")
+
+        self.write_json(self.previous_state_path, self.previous_state)
+        self.rebind_ledgers(self.previous_state)
+        portfolio_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
+        portfolio = json.loads(portfolio_path.read_text(encoding="utf-8"))
+        portfolio["ledger_version"] = 0
+        self.write_json(portfolio_path, portfolio)
+        self.assert_fail(self.evidence(), "WORK_STATE_PORTFOLIO_LEDGER_ROLLBACK")
+
+    def test_render_gate_defaults_to_not_executed_fail_closed(self):
+        evidence = build_phase_a_consumer_evidence(
+            manifest_path=self.manifest_path,
+            previous_state_path=self.previous_state_path,
+            root=self.tmp,
+            expected_run_id="run-1",
+            expected_commit_sha="b" * 40,
+            expected_production_snapshot_id="a" * 64,
+            expected_previous_state_id=self.previous_state["current_state_id"],
+            expected_previous_state_hash=self.previous_state["current_state_hash"],
+            now=self.now,
+        )
+        self.assertEqual(evidence["data_gate"]["status"], "PASS")
+        self.assert_fail(evidence, "RENDER_GATE_NOT_EXECUTED")
+
+    def test_missing_expected_bindings_fail_closed(self):
+        cases = {
+            "expected_run_id": "MISSING_EXPECTED_RUN_ID",
+            "expected_commit_sha": "MISSING_EXPECTED_COMMIT_SHA",
+            "expected_production_snapshot_id": "MISSING_EXPECTED_PRODUCTION_SNAPSHOT_ID",
+            "expected_previous_state_id": "MISSING_EXPECTED_PREVIOUS_STATE_ID",
+            "expected_previous_state_hash": "MISSING_EXPECTED_PREVIOUS_STATE_HASH",
+        }
+        for arg, reason in cases.items():
+            with self.subTest(arg=arg):
+                self.assert_fail(self.evidence(**{arg: None}), reason)
 
     def test_render_gate_fail_with_data_gate_pass_uses_no_fallback(self):
         evidence = self.evidence(render_preview_status="FAIL")

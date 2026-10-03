@@ -13,8 +13,14 @@ artifacts:
 - `ois_chart_rolling_180.json`
 
 It keeps Data Gate and Render Gate separate. A Data Gate pass may allow a chart
-render preview. A Render Gate failure blocks the preview and never triggers
-WTI/Brent refetch, MA/MACD/RSI recalculation, rolling-180 rebuild, static
-fallback, or market-data fallback.
+render preview only when an explicit renderer result is supplied. Missing render
+evidence defaults to `NOT_EXECUTED` and fails closed. A Render Gate failure blocks
+the preview and never triggers WTI/Brent refetch, MA/MACD/RSI recalculation,
+rolling-180 rebuild, static fallback, or market-data fallback.
+
+The consumer validates the previous OIS state through the canonical work-state
+document validator and binds it to the portfolio and transaction ledgers in the
+work-state store. Expected run, commit, production snapshot, previous-state ID,
+and previous-state hash are required for acceptance; omissions fail closed.
 
 All Phase A mutation authority fields remain false.
