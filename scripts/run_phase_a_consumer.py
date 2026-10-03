@@ -17,9 +17,12 @@ def main() -> int:
     parser.add_argument("--expected-production-snapshot-id", required=True)
     parser.add_argument("--expected-previous-state-id", required=True)
     parser.add_argument("--expected-previous-state-hash", required=True)
-    parser.add_argument("--render-preview-status", default="NOT_EXECUTED")
+    parser.add_argument("--renderer-evidence")
     parser.add_argument("--output")
     args = parser.parse_args()
+    renderer_evidence = None
+    if args.renderer_evidence:
+        renderer_evidence = json.loads(Path(args.renderer_evidence).read_text(encoding="utf-8"))
     evidence = build_phase_a_consumer_evidence(
         manifest_path=args.manifest,
         previous_state_path=args.previous_state,
@@ -29,7 +32,7 @@ def main() -> int:
         expected_production_snapshot_id=args.expected_production_snapshot_id,
         expected_previous_state_id=args.expected_previous_state_id,
         expected_previous_state_hash=args.expected_previous_state_hash,
-        render_preview_status=args.render_preview_status,
+        renderer_evidence=renderer_evidence,
     )
     text = json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
     if args.output:

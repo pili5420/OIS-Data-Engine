@@ -12,45 +12,23 @@ from pathlib import Path
 from src.runtime.consumer import build_phase_a_consumer_evidence
 from src.runtime.engine import write_json
 from src.runtime.shadow_manifest import build_shadow_manifest
-from src.runtime.validation import PUBLIC_FILES
-from src.work_state import STATE_ROOT, SYSTEM, STATE_VERSION, build_initial_state, calculate_state_hash, ledger_source_for_state, state_id
+from src.runtime.validation import PUBLIC_FILES, read_json
+from src.work_state import STATE_ROOT, SYSTEM, STATE_VERSION, build_initial_state, calculate_state_hash, ledger_source_for_state, state_id, validate_authoritative_production_snapshot
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class OisPhaseAConsumerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        self.now = datetime(2026, 9, 15, 1, 0, tzinfo=timezone.utc)
+        self.now = datetime(2026, 9, 30, 1, 0, tzinfo=timezone.utc)
         self.production = self.tmp / "data" / "production"
         self.production.mkdir(parents=True)
         self.previous_state_path = self.tmp / "state" / "previous.json"
         self.previous_state_path.parent.mkdir(parents=True)
-        common = {
-            "runtime_contract_version": "1.0",
-            "generated_at": "2026-09-15T00:30:00Z",
-            "data_as_of": "2026-09-14",
-            "source_as_of": "2026-09-14",
-            "source": {"wti": "fixture", "brent": "fixture"},
-            "source_timestamp": {"wti": "2026-09-14T00:00:00Z", "brent": "2026-09-14T00:00:00Z"},
-            "snapshot_id": "a" * 64,
-            "production_snapshot_id": "a" * 64,
-            "run_id": "run-1",
-            "commit_sha": "b" * 40,
-            "published": True,
-            "validation_status": "PASS",
-            "quality_flags": [],
-            "missing_fields": [],
-            "duplicate_status": "PASS",
-            "freshness_status": "PASS",
-            "lineage": {"production_snapshot_id": "a" * 64, "run_id": "run-1", "commit_sha": "b" * 40, "source_as_of": "2026-09-14"},
-        }
-        docs = {
-            "ois_status.json": {**common, "schema_version": "OIS-STATUS-1.0", "status": "PASS", "validation": "PASS"},
-            "ois_ingestion_validation.json": {**common, "schema_version": "OIS-VALIDATION-1.0", "overall_validation": "PASS"},
-            "ois_chart_payload.json": {**common, "schema_version": "OIS-CHART-1.0", "datasets": {}},
-            "ois_chart_rolling_180.json": {**common, "schema_version": "OIS-ROLLING-180-1.0", "window_size": 180, "datasets": {}},
-        }
-        for name, doc in docs.items():
-            write_json(self.production / name, doc)
+        for name in PUBLIC_FILES:
+            shutil.copy2(ROOT / "data" / "production" / name, self.production / name)
+        self.status_doc = read_json(self.production / "ois_status.json")
         self.previous_state = self.previous_state_fixture()
         self.write_json(self.previous_state_path, self.previous_state)
         self.manifest_path = self.tmp / "manifest.json"
@@ -71,8 +49,8 @@ class OisPhaseAConsumerTests(unittest.TestCase):
             "production_dir": self.production,
             "cadence": "OIS_0735_PREMARKET",
             "event": "schedule",
-            "market_date": "2026-09-15",
-            "generated_at": "2026-09-15T00:45:00Z",
+            "market_date": self.status_doc["source_as_of"],
+            "generated_at": "2026-09-30T00:45:00Z",
         }
         values.update(overrides)
         return build_shadow_manifest(**values)
@@ -82,30 +60,19 @@ class OisPhaseAConsumerTests(unittest.TestCase):
             "manifest_path": self.manifest_path,
             "previous_state_path": self.previous_state_path,
             "root": self.tmp,
-            "expected_run_id": "run-1",
-            "expected_commit_sha": "b" * 40,
-            "expected_production_snapshot_id": "a" * 64,
+            "expected_run_id": self.status_doc["run_id"],
+            "expected_commit_sha": self.status_doc["commit_sha"],
+            "expected_production_snapshot_id": self.status_doc["production_snapshot_id"],
             "expected_previous_state_id": self.previous_state["current_state_id"],
             "expected_previous_state_hash": self.previous_state["current_state_hash"],
-            "render_preview_status": "PASS",
+            "renderer_evidence": self.renderer_evidence(),
             "now": self.now,
         }
         args.update(overrides)
         return build_phase_a_consumer_evidence(**args)
 
     def previous_state_fixture(self):
-        production = {
-            "production_snapshot_id": "a" * 64,
-            "source_run_id": "run-1",
-            "source_commit_sha": "b" * 40,
-            "source_as_of": "2026-09-14",
-            "production_lineage": {
-                "production_snapshot_id": "a" * 64,
-                "run_id": "run-1",
-                "commit_sha": "b" * 40,
-                "source_as_of": "2026-09-14",
-            },
-        }
+        production = validate_authoritative_production_snapshot(self.tmp)
         bundle = build_initial_state(work_execution_id="phase-a-prev-001", production=production, created_at="2026-09-15T00:00:00Z")
         store = self.tmp / STATE_ROOT
         (store / "history").mkdir(parents=True)
@@ -113,7 +80,32 @@ class OisPhaseAConsumerTests(unittest.TestCase):
         self.write_json(store / "history" / f"{bundle['state']['current_state_id']}.json", bundle["state"])
         self.write_json(store / "portfolio_ledger.json", bundle["portfolio_ledger"])
         self.write_json(store / "transaction_ledger.json", bundle["transaction_ledger"])
+        self.original_portfolio_ledger = copy.deepcopy(bundle["portfolio_ledger"])
+        self.original_transaction_ledger = copy.deepcopy(bundle["transaction_ledger"])
         return bundle["state"]
+
+    def renderer_evidence(self, **overrides):
+        evidence = {
+            "renderer_execution_id": "render-phase-a-001",
+            "render_status": "PASS",
+            "chart_count": 6,
+            "charts": [
+                "WTI Price Structure",
+                "WTI MACD",
+                "WTI RSI14",
+                "Brent Price Structure",
+                "Brent MACD",
+                "Brent RSI14",
+            ],
+            "production_snapshot_id": self.status_doc["production_snapshot_id"],
+            "run_id": self.status_doc["run_id"],
+            "commit_sha": self.status_doc["commit_sha"],
+            "fallback_used": False,
+            "static_fallback_used": False,
+            "recalculation_used": False,
+        }
+        evidence.update(overrides)
+        return evidence
 
     def refresh_state_identity(self, state):
         state["current_state_hash"] = calculate_state_hash(state)
@@ -135,6 +127,14 @@ class OisPhaseAConsumerTests(unittest.TestCase):
             ledger["current_state_hash"] = state["current_state_hash"]
             ledger["source"] = source
             self.write_json(path, ledger)
+
+    def write_canonical_state(self, state, *, history: bool = True, previous: bool = True):
+        store = self.tmp / STATE_ROOT
+        self.write_json(store / "current_state.json", state)
+        if history:
+            self.write_json(store / "history" / f"{state['current_state_id']}.json", state)
+        if previous:
+            self.write_json(self.previous_state_path, state)
 
     def assert_fail(self, evidence, reason):
         self.assertEqual(evidence["status"], "FAIL_CLOSED")
@@ -186,14 +186,22 @@ class OisPhaseAConsumerTests(unittest.TestCase):
     def test_previous_state_semantic_and_ledger_corruption_fail_closed(self):
         state = copy.deepcopy(self.previous_state)
         state["decision_state"]["signals"].append({"symbol": "FAKE"})
-        self.write_json(self.previous_state_path, state)
+        self.write_canonical_state(state)
         self.assert_fail(self.evidence(), "WORK_STATE_HASH_MISMATCH")
+        self.write_canonical_state(self.previous_state)
 
         state = copy.deepcopy(self.previous_state)
         state["lineage"]["current_state_id"] = "stale"
-        self.write_json(self.previous_state_path, state)
+        self.write_canonical_state(state)
         self.assert_fail(self.evidence(), "WORK_STATE_LINEAGE_ID")
-        self.write_json(self.previous_state_path, self.previous_state)
+        self.write_canonical_state(self.previous_state)
+        self.rebind_ledgers(self.previous_state)
+
+        state = copy.deepcopy(self.previous_state)
+        state["current_state_id"] = "ois-work-state-v1-wrong"
+        self.write_canonical_state(state, history=False)
+        self.assert_fail(self.evidence(), "WORK_STATE_ID_MISMATCH")
+        self.write_canonical_state(self.previous_state)
         self.rebind_ledgers(self.previous_state)
 
         portfolio_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
@@ -212,15 +220,64 @@ class OisPhaseAConsumerTests(unittest.TestCase):
         self.write_json(transaction_path, transactions)
         self.assert_fail(self.evidence(), "WORK_STATE_SSOT_TRANSACTION_LEDGER_SOURCE")
 
+    def test_previous_state_must_be_canonical_current_and_history(self):
+        self.write_json(self.previous_state_path, copy.deepcopy(self.previous_state))
+        self.previous_state_path.write_text(json.dumps(self.previous_state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.assert_fail(self.evidence(), "WORK_STATE_SUPPLIED_PREVIOUS_NOT_CANONICAL")
+        self.write_json(self.previous_state_path, self.previous_state)
+
+        history_path = self.tmp / STATE_ROOT / "history" / f"{self.previous_state['current_state_id']}.json"
+        history = copy.deepcopy(self.previous_state)
+        history["created_at"] = "2026-09-15T00:00:01Z"
+        self.write_json(history_path, history)
+        self.assert_fail(self.evidence(), "WORK_STATE_POINTER_HISTORY_MISMATCH")
+
+    def test_previous_state_ssot_negative_matrix(self):
+        portfolio_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
+        transaction_path = self.tmp / STATE_ROOT / "transaction_ledger.json"
+
+        portfolio = json.loads(portfolio_path.read_text(encoding="utf-8"))
+        portfolio["current_state_id"] = "wrong"
+        self.write_json(portfolio_path, portfolio)
+        self.assert_fail(self.evidence(), "WORK_STATE_SSOT_PORTFOLIO_LEDGER_STATE_ID")
+        self.rebind_ledgers(self.previous_state)
+
+        transactions = json.loads(transaction_path.read_text(encoding="utf-8"))
+        transactions["current_state_hash"] = "0" * 64
+        self.write_json(transaction_path, transactions)
+        self.assert_fail(self.evidence(), "WORK_STATE_SSOT_TRANSACTION_LEDGER_STATE_HASH")
+        self.rebind_ledgers(self.previous_state)
+
+        portfolio = json.loads(portfolio_path.read_text(encoding="utf-8"))
+        portfolio["ledger_reset_detected"] = True
+        self.write_json(portfolio_path, portfolio)
+        self.assert_fail(self.evidence(), "WORK_STATE_SSOT_PORTFOLIO_LEDGER_RESET")
+        self.write_json(portfolio_path, self.original_portfolio_ledger)
+        self.write_json(transaction_path, self.original_transaction_ledger)
+
+        transactions = json.loads(transaction_path.read_text(encoding="utf-8"))
+        transactions["ledger_version"] = 0
+        self.write_json(transaction_path, transactions)
+        self.assert_fail(self.evidence(), "WORK_STATE_TRANSACTION_LEDGER_ROLLBACK")
+
+    def test_ssot_validation_failure_fails_closed(self):
+        for name in PUBLIC_FILES:
+            path = self.production / name
+            doc = read_json(path)
+            doc["source"]["wti"] = "fixture"
+            self.write_json(path, doc)
+        self.write_json(self.manifest_path, self.manifest())
+        self.assert_fail(self.evidence(), "WORK_PRODUCTION_UNAPPROVED_SOURCE")
+
     def test_previous_state_reset_and_rollback_fail_closed(self):
         state = copy.deepcopy(self.previous_state)
         state["decision_state"]["state_reset_detected"] = True
         self.refresh_state_identity(state)
+        self.write_canonical_state(state)
         self.rebind_ledgers(state)
-        self.write_json(self.previous_state_path, state)
         self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "WORK_STATE_PRIOR_STATE_RESET")
 
-        self.write_json(self.previous_state_path, self.previous_state)
+        self.write_canonical_state(self.previous_state)
         self.rebind_ledgers(self.previous_state)
         portfolio_path = self.tmp / STATE_ROOT / "portfolio_ledger.json"
         portfolio = json.loads(portfolio_path.read_text(encoding="utf-8"))
@@ -233,9 +290,9 @@ class OisPhaseAConsumerTests(unittest.TestCase):
             manifest_path=self.manifest_path,
             previous_state_path=self.previous_state_path,
             root=self.tmp,
-            expected_run_id="run-1",
-            expected_commit_sha="b" * 40,
-            expected_production_snapshot_id="a" * 64,
+            expected_run_id=self.status_doc["run_id"],
+            expected_commit_sha=self.status_doc["commit_sha"],
+            expected_production_snapshot_id=self.status_doc["production_snapshot_id"],
             expected_previous_state_id=self.previous_state["current_state_id"],
             expected_previous_state_hash=self.previous_state["current_state_hash"],
             now=self.now,
@@ -256,12 +313,35 @@ class OisPhaseAConsumerTests(unittest.TestCase):
                 self.assert_fail(self.evidence(**{arg: None}), reason)
 
     def test_render_gate_fail_with_data_gate_pass_uses_no_fallback(self):
-        evidence = self.evidence(render_preview_status="FAIL")
+        evidence = self.evidence(renderer_evidence=self.renderer_evidence(render_status="FAIL"))
         self.assertEqual(evidence["data_gate"]["status"], "PASS")
         self.assertEqual(evidence["render_gate"]["status"], "FAIL_CLOSED")
         self.assertEqual(evidence["six_chart_preview_status"], "BLOCKED")
         self.assertFalse(evidence["fallback_used"])
-        self.assertIn("RENDER_GATE_FAIL", evidence["fail_closed_reason"])
+        self.assertIn("RENDER_STATUS_NOT_PASS", evidence["fail_closed_reason"])
+
+    def test_structured_renderer_evidence_contract(self):
+        cases = {
+            "render_status missing": ("RENDER_STATUS_NOT_PASS", lambda e: e.pop("render_status")),
+            "renderer_execution_id missing": ("RENDERER_EXECUTION_ID_MISSING", lambda e: e.pop("renderer_execution_id")),
+            "chart_count mismatch": ("RENDER_CHART_COUNT_MISMATCH", lambda e: e.update({"chart_count": 5})),
+            "missing chart": ("RENDER_REQUIRED_CHART_MISSING", lambda e: e.update({"charts": e["charts"][:-1]})),
+            "extra chart": ("RENDER_UNAPPROVED_CHART", lambda e: e.update({"charts": e["charts"] + ["Unapproved Chart"], "chart_count": 7})),
+            "wrong snapshot": ("RENDER_SNAPSHOT_MISMATCH", lambda e: e.update({"production_snapshot_id": "wrong"})),
+            "wrong run": ("RENDER_RUN_ID_MISMATCH", lambda e: e.update({"run_id": "wrong"})),
+            "wrong commit": ("RENDER_COMMIT_MISMATCH", lambda e: e.update({"commit_sha": "0" * 40})),
+            "fallback": ("RENDER_FALLBACK_USED", lambda e: e.update({"fallback_used": True})),
+            "static fallback": ("RENDER_STATIC_FALLBACK_USED", lambda e: e.update({"static_fallback_used": True})),
+            "recalculation": ("RENDER_RECALCULATION_USED", lambda e: e.update({"recalculation_used": True})),
+        }
+        for name, (reason, mutate) in cases.items():
+            with self.subTest(name=name):
+                evidence_doc = self.renderer_evidence()
+                mutate(evidence_doc)
+                evidence = self.evidence(renderer_evidence=evidence_doc)
+                self.assertEqual(evidence["data_gate"]["status"], "PASS")
+                self.assert_fail(evidence, reason)
+        self.assertEqual(self.evidence(renderer_evidence=self.renderer_evidence())["render_gate"]["status"], "PASS")
 
 
 if __name__ == "__main__":
