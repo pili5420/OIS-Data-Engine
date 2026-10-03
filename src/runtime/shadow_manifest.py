@@ -164,6 +164,8 @@ def validate_shadow_manifest(
     freshness = manifest.get("freshness", {})
     if not isinstance(freshness, dict) or freshness.get("status") != "PASS":
         errors.append("FRESHNESS_FAIL")
+    if manifest.get("blocked_dependencies"):
+        errors.append("BLOCKED_DEPENDENCIES_PRESENT")
     references = manifest.get("payload_references", [])
     if not isinstance(references, list) or {Path(str(ref.get("path", ""))).name for ref in references if isinstance(ref, dict)} != set(PUBLIC_FILES):
         errors.append("PUBLIC_ARTIFACT_SET_MISMATCH")
