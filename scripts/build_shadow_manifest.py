@@ -24,6 +24,7 @@ def main(argv=None) -> int:
         cadence=args.cadence,
         event=args.event,
         market_date=args.market_date,
+        reference_root=root,
     )
     validation = validate_shadow_manifest(manifest, root=root)
     output = root / args.output

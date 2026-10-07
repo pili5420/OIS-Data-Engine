@@ -19,10 +19,11 @@ import yaml
 
 from scripts.prepare_pages import prepare_pages
 from src.indicators.technical import build_indicators
-from src.runtime.engine import (CSV_FIELDS, STATE_PATH, build_candidate, encoded, git, load_previous,
-                                merge_history, validate_bundle, validate_legacy_bundle, write_json)
+from src.runtime.engine import (CSV_FIELDS, PRODUCTION_BUNDLE_MANIFEST_PATH, STATE_PATH, build_candidate, encoded,
+                                git, load_previous, merge_history, validate_bundle, validate_legacy_bundle, write_json)
 from src.runtime.publish import publish
 from src.runtime.revisions import REVISION_ID, match_approved_revision, revision_id_for_date, row_hash
+from src.runtime.shadow_manifest import CONTRACT_VERSION, validate_shadow_manifest
 from src.runtime.source import IntegrityError, TransientError, get_json, latest_completed, normalize, schedule, stamp
 from src.runtime.validation import FIELDS, PUBLIC_FILES, read_json, validate_history, validate_indicators
 
@@ -250,6 +251,19 @@ class RuntimeIntegrationTests(unittest.TestCase):
         self.assertEqual(set(PUBLIC_FILES), {f.name for f in pages.iterdir()})
         for name in PUBLIC_FILES:
             self.assertEqual((pages / name).read_bytes(), (self.candidate / "data/production" / name).read_bytes())
+
+    def test_candidate_materializes_production_bundle_manifest(self):
+        manifest_path = self.candidate / PRODUCTION_BUNDLE_MANIFEST_PATH
+        self.assertTrue(manifest_path.is_file())
+        manifest = read_json(manifest_path)
+        self.assertEqual(manifest["version"], CONTRACT_VERSION)
+        self.assertEqual(manifest["validation"]["status"], "PASS")
+        self.assertEqual(manifest["freshness"]["status"], "PASS")
+        self.assertEqual(manifest["blocked_dependencies"], [])
+        self.assertEqual({Path(ref["path"]).name for ref in manifest["payload_references"]}, set(PUBLIC_FILES))
+        self.assertEqual({Path(ref["path"]).as_posix().split("/")[0] for ref in manifest["payload_references"]}, {"data"})
+        validation = validate_shadow_manifest(manifest, root=self.candidate, now=NOW)
+        self.assertEqual(validation["validation_status"], "PASS")
 
     def test_failures_leave_entire_previous_production_unchanged(self):
         root = self.copy_candidate("failed-attempts-root")
@@ -486,6 +500,9 @@ class RuntimeIntegrationTests(unittest.TestCase):
         for name in PUBLIC_FILES:
             document = json.loads(git(self.repo, "show", f"{tree}:data/production/{name}"))
             self.assertEqual(document["validation_status"], "PASS")
+        manifest = json.loads(git(self.repo, "show", f"{tree}:{PRODUCTION_BUNDLE_MANIFEST_PATH}"))
+        self.assertEqual(manifest["version"], CONTRACT_VERSION)
+        self.assertEqual(manifest["contract_validation"]["validation_status"], "PASS")
         self.assertEqual(before, git(self.repo, "rev-parse", "HEAD"))
         self.assertFalse((self.repo / STATE_PATH).exists())
 
