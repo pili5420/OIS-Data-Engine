@@ -3,71 +3,29 @@
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 90.49
+      "trailing_20d_support": 99.25
     },
     "momentum": {
-      "close_minus_20d_close": 15.970001,
-      "macd_histogram": -0.255286,
-      "rsi14": 59.796207
+      "close_minus_20d_close": 2.660004,
+      "macd_histogram": -0.935892,
+      "rsi14": 50.444022
     },
     "resistance": 108.75,
-    "rows": 515,
+    "rows": 521,
     "source": "yahoo_chart",
-    "source_date": "2026-09-28",
-    "support": 90.49,
+    "source_date": "2026-10-06",
+    "support": 99.25,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 101.587999,
+      "close_above_ma20": 103.6425,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"
   },
-  "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
-  "data_as_of": "2026-09-28",
+  "commit_sha": "15924d878401223a60cbaec888d615ba92ebc1f1",
+  "data_as_of": "2026-10-06",
   "datasets": {
     "brent_macd": [
-      {
-        "date": "2025-09-30",
-        "dea": 0.093948,
-        "dif": 0.193745,
-        "histogram": 0.099797,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-01",
-        "dea": 0.068929,
-        "dif": -0.031149,
-        "histogram": -0.100077,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-02",
-        "dea": -0.006039,
-        "dif": -0.305909,
-        "histogram": -0.29987,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-03",
-        "dea": -0.101669,
-        "dif": -0.484187,
-        "histogram": -0.382519,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-06",
-        "dea": -0.190007,
-        "dif": -0.54336,
-        "histogram": -0.353353,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-07",
-        "dea": -0.26903,
-        "dif": -0.585124,
-        "histogram": -0.316094,
-        "zero": 0
-      },
       {
         "date": "2025-10-08",
         "dea": -0.324696,
@@ -1775,51 +1733,51 @@
         "dif": 3.380246,
         "histogram": -0.255286,
         "zero": 0
+      },
+      {
+        "date": "2026-09-29",
+        "dea": 3.52527,
+        "dif": 3.084224,
+        "histogram": -0.441047,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-30",
+        "dea": 3.398643,
+        "dif": 2.892135,
+        "histogram": -0.506508,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-01",
+        "dea": 3.241186,
+        "dif": 2.611358,
+        "histogram": -0.629829,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-02",
+        "dea": 3.064315,
+        "dif": 2.35683,
+        "histogram": -0.707485,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-05",
+        "dea": 2.846771,
+        "dif": 1.976595,
+        "histogram": -0.870176,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-06",
+        "dea": 2.612798,
+        "dif": 1.676906,
+        "histogram": -0.935892,
+        "zero": 0
       }
     ],
     "brent_price_structure": [
-      {
-        "date": "2025-09-30",
-        "ma120": 67.32525,
-        "ma20": 67.468999,
-        "ma60": 68.130666,
-        "price": 67.019997
-      },
-      {
-        "date": "2025-10-01",
-        "ma120": 67.342083,
-        "ma20": 67.356499,
-        "ma60": 68.050666,
-        "price": 65.349998
-      },
-      {
-        "date": "2025-10-02",
-        "ma120": 67.336667,
-        "ma20": 67.212499,
-        "ma60": 67.949333,
-        "price": 64.110001
-      },
-      {
-        "date": "2025-10-03",
-        "ma120": 67.33375,
-        "ma20": 67.163999,
-        "ma60": 67.880833,
-        "price": 64.529999
-      },
-      {
-        "date": "2025-10-06",
-        "ma120": 67.340417,
-        "ma20": 67.136499,
-        "ma60": 67.799333,
-        "price": 65.470001
-      },
-      {
-        "date": "2025-10-07",
-        "ma120": 67.337083,
-        "ma20": 67.089499,
-        "ma60": 67.736666,
-        "price": 65.449997
-      },
       {
         "date": "2025-10-08",
         "ma120": 67.322833,
@@ -3527,51 +3485,51 @@
         "ma20": 101.587999,
         "ma60": 91.779333,
         "price": 105.279999
+      },
+      {
+        "date": "2026-09-29",
+        "ma120": 93.661,
+        "ma20": 102.192999,
+        "ma60": 92.289333,
+        "price": 102.589996
+      },
+      {
+        "date": "2026-09-30",
+        "ma120": 93.724417,
+        "ma20": 102.636999,
+        "ma60": 92.778833,
+        "price": 103.529999
+      },
+      {
+        "date": "2026-10-01",
+        "ma120": 93.783667,
+        "ma20": 102.970999,
+        "ma60": 93.183666,
+        "price": 102.309998
+      },
+      {
+        "date": "2026-10-02",
+        "ma120": 93.80775,
+        "ma20": 103.307499,
+        "ma60": 93.616166,
+        "price": 102.25
+      },
+      {
+        "date": "2026-10-05",
+        "ma120": 93.853833,
+        "ma20": 103.509499,
+        "ma60": 94.021333,
+        "price": 100.32
+      },
+      {
+        "date": "2026-10-06",
+        "ma120": 93.900917,
+        "ma20": 103.6425,
+        "ma60": 94.309333,
+        "price": 100.580002
       }
     ],
     "brent_rsi": [
-      {
-        "date": "2025-09-30",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 46.64026,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-01",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 40.730199,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-02",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 36.982875,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-03",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 39.029032,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-06",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 43.454363,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-07",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 43.382201,
-        "upper70": 70
-      },
       {
         "date": "2025-10-08",
         "lower30": 30,
@@ -5279,51 +5237,51 @@
         "middle50": 50,
         "rsi14": 59.796207,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-29",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 54.750301,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-30",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 56.143026,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-01",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 53.827398,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-02",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 53.710074,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-05",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 49.939269,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-06",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 50.444022,
+        "upper70": 70
       }
     ],
     "wti_macd": [
-      {
-        "date": "2025-09-30",
-        "dea": -0.150427,
-        "dif": -0.082048,
-        "histogram": 0.068378,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-01",
-        "dea": -0.166618,
-        "dif": -0.231383,
-        "histogram": -0.064765,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-02",
-        "dea": -0.223185,
-        "dif": -0.44945,
-        "histogram": -0.226266,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-03",
-        "dea": -0.295202,
-        "dif": -0.58327,
-        "histogram": -0.288068,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-06",
-        "dea": -0.359532,
-        "dif": -0.616852,
-        "histogram": -0.25732,
-        "zero": 0
-      },
-      {
-        "date": "2025-10-07",
-        "dea": -0.414214,
-        "dif": -0.632942,
-        "histogram": -0.218728,
-        "zero": 0
-      },
       {
         "date": "2025-10-08",
         "dea": -0.445955,
@@ -7031,51 +6989,51 @@
         "dif": 1.947773,
         "histogram": -1.283915,
         "zero": 0
+      },
+      {
+        "date": "2026-09-29",
+        "dea": 2.854133,
+        "dif": 1.343917,
+        "histogram": -1.510216,
+        "zero": 0
+      },
+      {
+        "date": "2026-09-30",
+        "dea": 2.470998,
+        "dif": 0.938458,
+        "histogram": -1.53254,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-01",
+        "dea": 2.137906,
+        "dif": 0.805539,
+        "histogram": -1.332367,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-02",
+        "dea": 1.820689,
+        "dif": 0.551821,
+        "histogram": -1.268869,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-05",
+        "dea": 1.499098,
+        "dif": 0.212733,
+        "histogram": -1.286365,
+        "zero": 0
+      },
+      {
+        "date": "2026-10-06",
+        "dea": 1.188366,
+        "dif": -0.054561,
+        "histogram": -1.242927,
+        "zero": 0
       }
     ],
     "wti_price_structure": [
-      {
-        "date": "2025-09-30",
-        "ma120": 64.319583,
-        "ma20": 63.431,
-        "ma60": 64.8355,
-        "price": 62.369999
-      },
-      {
-        "date": "2025-10-01",
-        "ma120": 64.333833,
-        "ma20": 63.3215,
-        "ma60": 64.726333,
-        "price": 61.779999
-      },
-      {
-        "date": "2025-10-02",
-        "ma120": 64.325333,
-        "ma20": 63.1715,
-        "ma60": 64.594666,
-        "price": 60.48
-      },
-      {
-        "date": "2025-10-03",
-        "ma120": 64.319917,
-        "ma20": 63.122,
-        "ma60": 64.499833,
-        "price": 60.880001
-      },
-      {
-        "date": "2025-10-06",
-        "ma120": 64.322917,
-        "ma20": 63.0935,
-        "ma60": 64.387166,
-        "price": 61.689999
-      },
-      {
-        "date": "2025-10-07",
-        "ma120": 64.31675,
-        "ma20": 63.0485,
-        "ma60": 64.299666,
-        "price": 61.73
-      },
       {
         "date": "2025-10-08",
         "ma120": 64.299,
@@ -8783,51 +8741,51 @@
         "ma20": 95.769501,
         "ma60": 86.111834,
         "price": 92.599998
+      },
+      {
+        "date": "2026-09-29",
+        "ma120": 88.408834,
+        "ma20": 95.950501,
+        "ma60": 86.459,
+        "price": 89.379997
+      },
+      {
+        "date": "2026-09-30",
+        "ma120": 88.34675,
+        "ma20": 95.960501,
+        "ma60": 86.792,
+        "price": 90.419998
+      },
+      {
+        "date": "2026-10-01",
+        "ma120": 88.315917,
+        "ma20": 96.053501,
+        "ma60": 87.1145,
+        "price": 92.870003
+      },
+      {
+        "date": "2026-10-02",
+        "ma120": 88.2495,
+        "ma20": 96.044001,
+        "ma60": 87.431667,
+        "price": 91.110001
+      },
+      {
+        "date": "2026-10-05",
+        "ma120": 88.234083,
+        "ma20": 95.941501,
+        "ma60": 87.732,
+        "price": 89.43
+      },
+      {
+        "date": "2026-10-06",
+        "ma120": 88.218667,
+        "ma20": 95.762001,
+        "ma60": 87.920334,
+        "price": 89.440002
       }
     ],
     "wti_rsi": [
-      {
-        "date": "2025-09-30",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 43.734534,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-01",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 41.621315,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-02",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 37.340063,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-03",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 39.405406,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-06",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 43.468871,
-        "upper70": 70
-      },
-      {
-        "date": "2025-10-07",
-        "lower30": 30,
-        "middle50": 50,
-        "rsi14": 43.669769,
-        "upper70": 70
-      },
       {
         "date": "2025-10-08",
         "lower30": 30,
@@ -10535,68 +10493,110 @@
         "middle50": 50,
         "rsi14": 49.225495,
         "upper70": 70
+      },
+      {
+        "date": "2026-09-29",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 44.01621,
+        "upper70": 70
+      },
+      {
+        "date": "2026-09-30",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 46.003741,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-01",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 50.46523,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-02",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 47.433226,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-05",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 44.674084,
+        "upper70": 70
+      },
+      {
+        "date": "2026-10-06",
+        "lower30": 30,
+        "middle50": 50,
+        "rsi14": 44.694711,
+        "upper70": 70
       }
     ]
   },
   "duplicate_status": "PASS",
   "freshness_status": "PASS",
-  "generated_at": "2026-09-29T14:17:03Z",
+  "generated_at": "2026-10-07T17:30:49Z",
   "latest_complete_source_date": {
-    "brent": "2026-09-28",
-    "wti": "2026-09-28"
+    "brent": "2026-10-06",
+    "wti": "2026-10-06"
   },
   "lineage": {
     "approved_revision_count": 0,
     "approved_revisions": [],
-    "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+    "commit_sha": "15924d878401223a60cbaec888d615ba92ebc1f1",
     "historical_revision_recovery": "NOT_APPLICABLE",
     "migration_from_legacy": false,
-    "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+    "production_snapshot_id": "fec773fbae4cde865b6591379dad92ae3431174686fc364cd7fa30667fe4c75d",
     "revision_id": null,
-    "run_id": "36580950486",
-    "source_as_of": "2026-09-28"
+    "run_id": "37659277982",
+    "source_as_of": "2026-10-06"
   },
   "missing_fields": [],
-  "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+  "production_snapshot_id": "fec773fbae4cde865b6591379dad92ae3431174686fc364cd7fa30667fe4c75d",
   "published": true,
   "quality_flags": [
     "EMPTY_SHORTENED_SESSION_EXCLUDED",
     "INCOMPLETE_SESSION_EXCLUDED"
   ],
   "record_count": 250,
-  "run_id": "36580950486",
+  "run_id": "37659277982",
   "runtime_contract_version": "1.0",
   "schema_version": "OIS-CHART-1.0",
-  "snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+  "snapshot_id": "fec773fbae4cde865b6591379dad92ae3431174686fc364cd7fa30667fe4c75d",
   "source": {
     "brent": "yahoo_chart",
     "wti": "yahoo_chart"
   },
-  "source_as_of": "2026-09-28",
+  "source_as_of": "2026-10-06",
   "source_timestamp": {
-    "brent": "2026-09-28T04:00:00Z",
-    "wti": "2026-09-28T04:00:00Z"
+    "brent": "2026-10-06T04:00:00Z",
+    "wti": "2026-10-06T04:00:00Z"
   },
   "validation_status": "PASS",
   "wti": {
     "data_frequency": "daily",
     "invalidation_reference": {
       "rsi_oversold_line": 30,
-      "trailing_20d_support": 85.76
+      "trailing_20d_support": 89.38
     },
     "momentum": {
-      "close_minus_20d_close": 9.199997,
-      "macd_histogram": -1.283915,
-      "rsi14": 49.225495
+      "close_minus_20d_close": -3.589996,
+      "macd_histogram": -1.242927,
+      "rsi14": 44.694711
     },
     "resistance": 105.83,
-    "rows": 515,
+    "rows": 521,
     "source": "yahoo_chart",
-    "source_date": "2026-09-28",
-    "support": 85.76,
+    "source_date": "2026-10-06",
+    "support": 89.38,
     "support_resistance_method": "Trailing 20 trading-day close min/max.",
     "trigger_reference": {
-      "close_above_ma20": 95.769501,
+      "close_above_ma20": 95.762001,
       "macd_histogram_above_zero": 0
     },
     "validation": "PASS"

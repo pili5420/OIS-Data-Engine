@@ -1,20 +1,20 @@
 {
   "authoritative_production_pointer": {
-    "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+    "commit_sha": "15924d878401223a60cbaec888d615ba92ebc1f1",
     "lineage": {
       "approved_revision_count": 0,
       "approved_revisions": [],
-      "commit_sha": "0e1de3284ffe52447715d821e8bd3d7dfe547c4c",
+      "commit_sha": "15924d878401223a60cbaec888d615ba92ebc1f1",
       "historical_revision_recovery": "NOT_APPLICABLE",
       "migration_from_legacy": false,
-      "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
+      "production_snapshot_id": "fec773fbae4cde865b6591379dad92ae3431174686fc364cd7fa30667fe4c75d",
       "revision_id": null,
-      "run_id": "36580950486",
-      "source_as_of": "2026-09-28"
+      "run_id": "37659277982",
+      "source_as_of": "2026-10-06"
     },
-    "production_snapshot_id": "37493c5fc1bb653bf2aaf032bf231d1cf79511eb8b075a273ab5e3513399661b",
-    "run_id": "36580950486",
-    "source_as_of": "2026-09-28"
+    "production_snapshot_id": "fec773fbae4cde865b6591379dad92ae3431174686fc364cd7fa30667fe4c75d",
+    "run_id": "37659277982",
+    "source_as_of": "2026-10-06"
   },
   "current_state": {
     "execution_type": "THREE_DAY_E2E_SOAK_ACCEPTANCE",
